@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>오늘의 운동 추천</title>
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#0d0d0d" />
+<link rel="icon" href="icon.svg" type="image/svg+xml" />
+<link rel="apple-touch-icon" href="icon.svg" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="LiftLog" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="app-container">
+
+  <input type="file" id="import-file-input" accept="application/json" class="hidden" />
+
+  <!-- 온보딩 화면 -->
+  <section id="onboarding-screen" class="screen">
+    <div class="card onboarding-card">
+      <h1>오늘의 운동 추천</h1>
+      <p class="subtitle">기본 정보를 입력하면 점진적 과부하 원칙에 따라 운동을 추천해드려요.</p>
+      <form id="onboarding-form">
+        <div class="form-row">
+          <label for="ob-height">키 (cm)</label>
+          <input type="number" id="ob-height" min="1" step="0.1" required />
+        </div>
+        <div class="form-row">
+          <label for="ob-weight">체중 (kg)</label>
+          <input type="number" id="ob-weight" min="1" step="0.1" required />
+        </div>
+        <div class="form-row">
+          <label for="ob-squat">스쿼트 1RM (kg)</label>
+          <input type="number" id="ob-squat" min="1" step="0.5" required />
+        </div>
+        <div class="form-row">
+          <label for="ob-bench">벤치프레스 1RM (kg)</label>
+          <input type="number" id="ob-bench" min="1" step="0.5" required />
+        </div>
+        <div class="form-row">
+          <label for="ob-deadlift">데드리프트 1RM (kg)</label>
+          <input type="number" id="ob-deadlift" min="1" step="0.5" required />
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">시작하기</button>
+      </form>
+      <p class="import-hint">
+        백업 파일이 있으신가요?
+        <button type="button" id="onboarding-import-btn" class="link-btn">가져오기</button>
+      </p>
+    </div>
+  </section>
+
+  <!-- 메인 화면 -->
+  <section id="main-screen" class="screen hidden">
+    <header class="main-header">
+      <h1>오늘의 운동 추천</h1>
+      <div class="main-header-actions">
+        <button id="open-settings-btn" class="btn btn-ghost btn-small">API 설정</button>
+        <button id="edit-profile-btn" class="btn btn-ghost btn-small">프로필 수정</button>
+        <button id="export-data-btn" class="btn btn-ghost btn-small">내보내기</button>
+        <button id="main-import-btn" class="btn btn-ghost btn-small">가져오기</button>
+        <button id="reset-btn" class="btn btn-ghost btn-small">데이터 초기화</button>
+      </div>
+    </header>
+
+    <section class="chat-section card">
+      <div class="chat-section-header">
+        <h2>AI 트레이너와 대화하기</h2>
+        <button type="button" id="clear-chat-btn" class="btn btn-ghost btn-small">대화 초기화</button>
+      </div>
+      <div id="chat-messages" class="chat-messages"></div>
+      <p id="chat-empty" class="empty-message">"오늘 뭐 하면 좋을까?"처럼 편하게 물어보세요.</p>
+      <form id="chat-form" class="chat-form">
+        <input type="text" id="chat-input" placeholder="예: 오늘 뭐 하면 좋을까?" autocomplete="off" required />
+        <button type="submit" class="btn btn-primary" id="chat-send-btn">전송</button>
+      </form>
+    </section>
+
+    <section class="log-panel-grid">
+      <!-- 왼쪽: 날짜별 운동 히스토리 -->
+      <div class="history-column">
+        <div class="history-column-header">
+          <h2>날짜별 운동 히스토리</h2>
+          <button id="open-log-form-btn" class="btn btn-primary btn-small">+ 오늘 운동 기록하기</button>
+        </div>
+        <div id="history-list" class="history-list"></div>
+        <p id="history-empty" class="empty-message hidden">아직 기록된 운동이 없어요. 오른쪽에서 기록을 추가해보세요.</p>
+      </div>
+
+      <!-- 오른쪽: 운동 기록 입력 폼 -->
+      <div class="form-column">
+        <div class="card timer-card">
+          <h2>타이머</h2>
+          <div id="timer-display" class="timer-display">00:00</div>
+          <div class="segment-timer">
+            <span class="segment-timer-label">쉬는 시간</span>
+            <span id="segment-timer-display" class="segment-timer-display">00:00</span>
+          </div>
+          <div class="timer-controls">
+            <button type="button" id="timer-start-btn" class="btn btn-primary btn-small">시작</button>
+            <button type="button" id="timer-lap-btn" class="btn btn-ghost btn-small" disabled>쉬는 시간 시작</button>
+            <button type="button" id="timer-reset-btn" class="btn btn-ghost btn-small">초기화</button>
+          </div>
+          <ul id="timer-laps" class="timer-laps"></ul>
+        </div>
+
+        <div id="log-form-placeholder" class="card log-form-placeholder">
+          <p class="empty-message">왼쪽의 "오늘 운동 기록하기" 버튼을 누르면 여기에 입력 폼이 나타나요.</p>
+        </div>
+
+        <section id="log-form-section" class="card log-form-card hidden">
+          <h2 id="log-form-heading">운동 기록하기</h2>
+          <form id="log-form">
+            <div class="form-row">
+              <label for="log-date">날짜</label>
+              <input type="date" id="log-date" required />
+            </div>
+            <div class="form-row">
+              <label for="log-title">오늘 제목 (선택)</label>
+              <input type="text" id="log-title" placeholder="예: 가슴·어깨 데이" />
+            </div>
+            <div class="form-row">
+              <label for="log-part">운동 부위</label>
+              <select id="log-part" required></select>
+            </div>
+            <div class="form-row">
+              <label for="log-exercise">운동 종목</label>
+              <select id="log-exercise" required></select>
+            </div>
+            <div class="form-row hidden" id="log-exercise-custom-row">
+              <label for="log-exercise-custom">종목 직접 입력</label>
+              <input type="text" id="log-exercise-custom" placeholder="예: 수영, 클라이밍 등" />
+            </div>
+            <div class="form-row">
+              <label for="log-weight">무게 (kg)</label>
+              <input type="number" id="log-weight" min="0" step="0.5" required />
+            </div>
+            <div class="form-row">
+              <label for="log-target-reps">목표 반복수 (세트당)</label>
+              <input type="number" id="log-target-reps" min="1" step="1" required />
+            </div>
+            <div class="form-row">
+              <label>세트별 실제 반복수</label>
+              <div id="sets-container" class="sets-container"></div>
+              <button type="button" id="add-set-btn" class="btn btn-ghost btn-small">+ 세트 추가</button>
+            </div>
+            <div class="form-actions">
+              <button type="button" id="cancel-log-btn" class="btn btn-ghost btn-block">취소</button>
+              <button type="submit" class="btn btn-primary btn-block">저장</button>
+            </div>
+          </form>
+        </section>
+      </div>
+    </section>
+  </section>
+
+  <!-- 프로필 수정 모달 -->
+  <div id="profile-modal" class="modal-overlay hidden">
+    <div class="card modal-card">
+      <h2>프로필 수정</h2>
+      <form id="profile-form">
+        <div class="form-row">
+          <label for="pf-height">키 (cm)</label>
+          <input type="number" id="pf-height" min="1" step="0.1" required />
+        </div>
+        <div class="form-row">
+          <label for="pf-weight">체중 (kg)</label>
+          <input type="number" id="pf-weight" min="1" step="0.1" required />
+        </div>
+        <div class="form-row">
+          <label for="pf-squat">스쿼트 1RM (kg)</label>
+          <input type="number" id="pf-squat" min="1" step="0.5" required />
+        </div>
+        <div class="form-row">
+          <label for="pf-bench">벤치프레스 1RM (kg)</label>
+          <input type="number" id="pf-bench" min="1" step="0.5" required />
+        </div>
+        <div class="form-row">
+          <label for="pf-deadlift">데드리프트 1RM (kg)</label>
+          <input type="number" id="pf-deadlift" min="1" step="0.5" required />
+        </div>
+        <div class="form-actions">
+          <button type="button" id="profile-cancel-btn" class="btn btn-ghost btn-block">취소</button>
+          <button type="submit" class="btn btn-primary btn-block">저장</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- API 설정 모달 -->
+  <div id="settings-modal" class="modal-overlay hidden">
+    <div class="card modal-card">
+      <h2>API 설정</h2>
+      <p class="subtitle">
+        대화하려면 본인 소유의 API 키가 필요해요. 서버에 저장된 공용 키는 없고,
+        입력한 키는 이 브라우저에만 저장돼요.
+      </p>
+      <form id="settings-form">
+        <div class="form-row">
+          <label for="settings-provider">AI 제공자</label>
+          <select id="settings-provider">
+            <option value="claude">Claude (Anthropic)</option>
+            <option value="gemini">Gemini (Google)</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label for="settings-api-key">API 키</label>
+          <input type="password" id="settings-api-key" placeholder="sk-ant-... 또는 AIza..." autocomplete="off" required />
+        </div>
+        <div class="form-actions">
+          <button type="button" id="settings-cancel-btn" class="btn btn-ghost btn-block">취소</button>
+          <button type="submit" class="btn btn-primary btn-block">저장</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</div>
+<script src="marked.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
