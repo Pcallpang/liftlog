@@ -98,13 +98,13 @@ h1 {
   }
 
   .main-header-actions {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    display: flex;
+    flex-wrap: wrap;
     gap: 8px;
   }
 
   .main-header-actions .btn {
-    width: 100%;
+    flex: 1 1 calc(50% - 4px);
   }
 }
 
