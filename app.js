@@ -465,6 +465,7 @@
       opt.textContent = part;
       select.appendChild(opt);
     });
+    renderPartChips();
   }
 
   function populateExerciseSelectForPart(part) {
@@ -483,6 +484,46 @@
 
     toggleCustomExerciseInput(select.value === CUSTOM_VALUE);
     updateFormFieldsForExercise(part, select.value);
+    renderExerciseChips(part);
+  }
+
+  function renderPartChips() {
+    const select = document.getElementById("log-part");
+    const container = document.getElementById("log-part-chips");
+    container.innerHTML = "";
+    PART_ORDER.forEach((part) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "chip" + (select.value === part ? " active" : "");
+      btn.textContent = part;
+      btn.addEventListener("click", () => {
+        if (select.value === part) return;
+        select.value = part;
+        select.dispatchEvent(new Event("change"));
+        renderPartChips();
+      });
+      container.appendChild(btn);
+    });
+  }
+
+  function renderExerciseChips(part) {
+    const select = document.getElementById("log-exercise");
+    const container = document.getElementById("log-exercise-chips");
+    container.innerHTML = "";
+    const items = [...(EXERCISE_PARTS[part] || []).map((ex) => ({ value: ex, label: ex })), { value: CUSTOM_VALUE, label: "직접 입력" }];
+    items.forEach(({ value, label }) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "chip" + (select.value === value ? " active" : "");
+      btn.textContent = label;
+      btn.addEventListener("click", () => {
+        if (select.value === value) return;
+        select.value = value;
+        select.dispatchEvent(new Event("change"));
+        renderExerciseChips(part);
+      });
+      container.appendChild(btn);
+    });
   }
 
   function toggleCustomExerciseInput(show) {
@@ -568,6 +609,7 @@
     document.getElementById("log-date").value = date;
     document.getElementById("log-title").value = loadDayTitles()[date] || "";
     document.getElementById("log-part").value = PART_ORDER[0];
+    renderPartChips();
     populateExerciseSelectForPart(PART_ORDER[0]);
     document.getElementById("sets-container").innerHTML = "";
     addSetRow();
@@ -587,14 +629,18 @@
     const part = findPartForExercise(entry.exercise);
     if (part) {
       document.getElementById("log-part").value = part;
+      renderPartChips();
       populateExerciseSelectForPart(part);
       document.getElementById("log-exercise").value = entry.exercise;
+      renderExerciseChips(part);
       toggleCustomExerciseInput(false);
     } else {
       const fallbackPart = PART_ORDER[PART_ORDER.length - 1];
       document.getElementById("log-part").value = fallbackPart;
+      renderPartChips();
       populateExerciseSelectForPart(fallbackPart);
       document.getElementById("log-exercise").value = CUSTOM_VALUE;
+      renderExerciseChips(fallbackPart);
       toggleCustomExerciseInput(true);
       document.getElementById("log-exercise-custom").value = entry.exercise;
     }

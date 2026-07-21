@@ -124,11 +124,13 @@
             </div>
             <div class="form-row">
               <label for="log-part">운동 부위</label>
-              <select id="log-part" required></select>
+              <select id="log-part" class="hidden" required></select>
+              <div id="log-part-chips" class="chip-group"></div>
             </div>
             <div class="form-row">
               <label for="log-exercise">운동 종목</label>
-              <select id="log-exercise" required></select>
+              <select id="log-exercise" class="hidden" required></select>
+              <div id="log-exercise-chips" class="chip-group"></div>
             </div>
             <div class="form-row hidden" id="log-exercise-custom-row">
               <label for="log-exercise-custom">종목 직접 입력</label>
