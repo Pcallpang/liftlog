@@ -134,18 +134,33 @@
               <label for="log-exercise-custom">종목 직접 입력</label>
               <input type="text" id="log-exercise-custom" placeholder="예: 수영, 클라이밍 등" />
             </div>
-            <div class="form-row">
+            <div class="form-row hidden" id="log-mode-toggle-row">
+              <label>측정 방식</label>
+              <div class="mode-toggle" id="log-mode-toggle">
+                <button type="button" class="mode-toggle-btn" data-mode="reps">횟수</button>
+                <button type="button" class="mode-toggle-btn" data-mode="duration">운동 시간</button>
+              </div>
+            </div>
+            <div class="form-row" id="log-weight-row">
               <label for="log-weight">무게 (kg)</label>
               <input type="number" id="log-weight" min="0" step="0.5" required />
             </div>
-            <div class="form-row">
+            <div class="form-row" id="log-target-reps-row">
               <label for="log-target-reps">목표 반복수 (세트당)</label>
               <input type="number" id="log-target-reps" min="1" step="1" required />
             </div>
-            <div class="form-row">
+            <div class="form-row" id="log-sets-row">
               <label>세트별 실제 반복수</label>
               <div id="sets-container" class="sets-container"></div>
               <button type="button" id="add-set-btn" class="btn btn-ghost btn-small">+ 세트 추가</button>
+            </div>
+            <div class="form-row hidden" id="log-duration-row">
+              <label for="log-duration-minutes">운동 시간 (분)</label>
+              <input type="number" id="log-duration-minutes" min="0" step="1" />
+            </div>
+            <div class="form-row hidden" id="log-distance-row">
+              <label for="log-distance-km">달린 거리 (km)</label>
+              <input type="number" id="log-distance-km" min="0" step="0.1" />
             </div>
             <div class="form-actions">
               <button type="button" id="cancel-log-btn" class="btn btn-ghost btn-block">취소</button>

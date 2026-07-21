@@ -55,13 +55,29 @@ def format_history(history):
 
     lines = []
     for entry in sorted_history[:20]:
+        entry_type = entry.get("type", "strength")
+        date = entry.get("date")
+        exercise = entry.get("exercise")
+
+        if entry_type == "distance_time":
+            lines.append(
+                f"- {date} {exercise} {entry.get('distanceKm')}km "
+                f"{entry.get('durationMinutes')}분"
+            )
+            continue
+
+        if entry_type == "reps_or_duration" and entry.get("mode") == "duration":
+            lines.append(f"- {date} {exercise} {entry.get('durationMinutes')}분")
+            continue
+
         sets = entry.get("sets", [])
         target = entry.get("targetReps", 0)
         success = all(r >= target for r in sets) if sets else True
         status = "성공" if success else "일부 실패"
         sets_text = ", ".join(str(r) for r in sets)
+        weight_text = f"{entry.get('weight')}kg " if entry_type == "strength" else ""
         lines.append(
-            f"- {entry.get('date')} {entry.get('exercise')} {entry.get('weight')}kg "
+            f"- {date} {exercise} {weight_text}"
             f"{len(sets)}세트({sets_text}회) 목표{target}회 [{status}]"
         )
     return "\n".join(lines)

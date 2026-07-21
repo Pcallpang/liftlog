@@ -15,11 +15,25 @@
     "하체": ["스쿼트", "핵스쿼트", "레그프레스", "워킹 런지", "레그컬", "레그익스텐션"],
     "어깨": ["오버헤드프레스", "덤벨 숄더 프레스", "사이드 레터럴 레이즈", "프론트 레이즈", "페이스풀", "리어 델트 플라이"],
     "팔": ["바벨 컬", "덤벨 해머 컬", "케이블 트라이셉스 푸쉬다운", "덤벨 라잉 트라이셉스 익스텐션"],
-    "유산소·기타": ["행잉 레그레이즈", "인클라인 런닝머신", "스텝밀"],
+    "유산소·기타": ["러닝", "행잉 레그레이즈", "인클라인 런닝머신", "스텝밀"],
   };
   const PART_ORDER = Object.keys(EXERCISE_PARTS);
 
+  const CARDIO_PART = "유산소·기타";
+  const EXERCISE_TYPE_OVERRIDES = {
+    "행잉 레그레이즈": { type: "reps_or_duration", defaultMode: "reps" },
+    "인클라인 런닝머신": { type: "reps_or_duration", defaultMode: "duration" },
+    "스텝밀": { type: "reps_or_duration", defaultMode: "duration" },
+    "러닝": { type: "distance_time" },
+  };
+
+  function getExerciseType(part, exerciseName) {
+    if (part !== CARDIO_PART) return { type: "strength" };
+    return EXERCISE_TYPE_OVERRIDES[exerciseName] || { type: "reps_or_duration", defaultMode: "reps" };
+  }
+
   let editingEntryId = null;
+  let currentFieldState = { type: "strength", mode: null };
 
   function findPartForExercise(exercise) {
     return PART_ORDER.find((part) => EXERCISE_PARTS[part].includes(exercise)) || null;
@@ -141,8 +155,41 @@
     });
   }
 
+  function hasRepsGoal(entry) {
+    const type = entry.type || "strength";
+    return type === "strength" || (type === "reps_or_duration" && entry.mode === "reps");
+  }
+
   function isEntrySuccess(entry) {
+    if (!hasRepsGoal(entry)) return null;
     return entry.sets.every((reps) => reps >= entry.targetReps);
+  }
+
+  function buildDetailCardBody(entry) {
+    const type = entry.type || "strength";
+
+    if (type === "distance_time") {
+      return { badge: `${entry.distanceKm}km`, meta: `시간 ${entry.durationMinutes}분`, setsHtml: "" };
+    }
+
+    if (type === "reps_or_duration" && entry.mode === "duration") {
+      return { badge: `${entry.durationMinutes}분`, meta: "운동 시간 기록", setsHtml: "" };
+    }
+
+    const success = isEntrySuccess(entry);
+    const setsHtml = entry.sets
+      .map((reps, i) => {
+        const failClass = reps >= entry.targetReps ? "" : "detail-set-chip-fail";
+        return `<span class="detail-set-chip ${failClass}">세트 ${i + 1}: ${reps}회</span>`;
+      })
+      .join("");
+    const failSuffix = success ? "" : " · 목표 미달";
+    const badge = type === "strength" ? `${entry.weight}kg` : `${entry.targetReps}회 목표`;
+    const meta =
+      type === "strength"
+        ? `목표 ${entry.targetReps}회 · ${entry.sets.length}세트${failSuffix}`
+        : `${entry.sets.length}세트${failSuffix}`;
+    return { badge, meta, setsHtml };
   }
 
   function formatDuration(ms) {
@@ -344,21 +391,15 @@
       detailPanel.className = "history-day-detail hidden";
       detailPanel.innerHTML = entries
         .map((entry) => {
-          const success = isEntrySuccess(entry);
-          const setsChips = entry.sets
-            .map((reps, i) => {
-              const failClass = reps >= entry.targetReps ? "" : "detail-set-chip-fail";
-              return `<span class="detail-set-chip ${failClass}">세트 ${i + 1}: ${reps}회</span>`;
-            })
-            .join("");
+          const { badge, meta, setsHtml } = buildDetailCardBody(entry);
           return `
             <div class="detail-card">
               <div class="detail-card-header">
                 <span class="detail-card-title">${escapeHtml(entry.exercise)}</span>
-                <span class="detail-card-weight">${entry.weight}kg</span>
+                <span class="detail-card-weight">${badge}</span>
               </div>
-              <div class="detail-card-meta">목표 ${entry.targetReps}회 · ${entry.sets.length}세트${success ? "" : " · 목표 미달"}</div>
-              <div class="detail-sets">${setsChips}</div>
+              <div class="detail-card-meta">${meta}</div>
+              <div class="detail-sets">${setsHtml}</div>
               <div class="detail-card-actions">
                 <button type="button" class="btn btn-ghost btn-small detail-edit-btn" data-id="${entry.id}">수정</button>
                 <button type="button" class="btn btn-ghost btn-small detail-delete-btn" data-id="${entry.id}">삭제</button>
@@ -441,6 +482,7 @@
     select.appendChild(customOpt);
 
     toggleCustomExerciseInput(select.value === CUSTOM_VALUE);
+    updateFormFieldsForExercise(part, select.value);
   }
 
   function toggleCustomExerciseInput(show) {
@@ -449,6 +491,47 @@
     row.classList.toggle("hidden", !show);
     input.required = show;
     if (!show) input.value = "";
+  }
+
+  // ---------- weight / reps / duration / distance fields ----------
+
+  function applyFieldVisibility(type, mode) {
+    const resolvedMode = type === "reps_or_duration" ? mode || "reps" : null;
+
+    const showWeight = type === "strength";
+    const showRepsFields = type === "strength" || (type === "reps_or_duration" && resolvedMode === "reps");
+    const showDurationField = (type === "reps_or_duration" && resolvedMode === "duration") || type === "distance_time";
+    const showDistance = type === "distance_time";
+    const showModeToggle = type === "reps_or_duration";
+
+    document.getElementById("log-weight-row").classList.toggle("hidden", !showWeight);
+    document.getElementById("log-weight").required = showWeight;
+
+    document.getElementById("log-target-reps-row").classList.toggle("hidden", !showRepsFields);
+    document.getElementById("log-target-reps").required = showRepsFields;
+    document.getElementById("log-sets-row").classList.toggle("hidden", !showRepsFields);
+
+    document.getElementById("log-duration-row").classList.toggle("hidden", !showDurationField);
+    document.getElementById("log-duration-minutes").required = showDurationField;
+
+    document.getElementById("log-distance-row").classList.toggle("hidden", !showDistance);
+    document.getElementById("log-distance-km").required = showDistance;
+
+    document.getElementById("log-mode-toggle-row").classList.toggle("hidden", !showModeToggle);
+    if (showModeToggle) {
+      document.querySelectorAll("#log-mode-toggle .mode-toggle-btn").forEach((btn) => {
+        btn.classList.toggle("active", btn.dataset.mode === resolvedMode);
+      });
+    }
+
+    currentFieldState = { type, mode: resolvedMode };
+    return currentFieldState;
+  }
+
+  function updateFormFieldsForExercise(part, exerciseName, mode) {
+    const info = getExerciseType(part, exerciseName);
+    const resolvedMode = info.type === "reps_or_duration" ? mode || info.defaultMode || "reps" : null;
+    return applyFieldVisibility(info.type, resolvedMode);
   }
 
   // ---------- set rows ----------
@@ -516,15 +599,27 @@
       document.getElementById("log-exercise-custom").value = entry.exercise;
     }
 
-    document.getElementById("log-weight").value = entry.weight;
-    document.getElementById("log-target-reps").value = entry.targetReps;
+    const entryType = entry.type || "strength";
+    applyFieldVisibility(entryType, entry.mode);
 
     document.getElementById("sets-container").innerHTML = "";
-    entry.sets.forEach(() => addSetRow());
-    const repsInputs = document.querySelectorAll("#sets-container .set-reps-input");
-    entry.sets.forEach((reps, i) => {
-      repsInputs[i].value = reps;
-    });
+
+    if (entryType === "distance_time") {
+      document.getElementById("log-distance-km").value = entry.distanceKm;
+      document.getElementById("log-duration-minutes").value = entry.durationMinutes;
+    } else if (entryType === "reps_or_duration" && entry.mode === "duration") {
+      document.getElementById("log-duration-minutes").value = entry.durationMinutes;
+    } else {
+      if (entryType === "strength") {
+        document.getElementById("log-weight").value = entry.weight;
+      }
+      document.getElementById("log-target-reps").value = entry.targetReps;
+      entry.sets.forEach(() => addSetRow());
+      const repsInputs = document.querySelectorAll("#sets-container .set-reps-input");
+      entry.sets.forEach((reps, i) => {
+        repsInputs[i].value = reps;
+      });
+    }
 
     document.getElementById("log-form-section").scrollIntoView({ behavior: "smooth", block: "start" });
   }
@@ -706,6 +801,14 @@
 
     document.getElementById("log-exercise").addEventListener("change", (e) => {
       toggleCustomExerciseInput(e.target.value === CUSTOM_VALUE);
+      const part = document.getElementById("log-part").value;
+      updateFormFieldsForExercise(part, e.target.value);
+    });
+
+    document.getElementById("log-mode-toggle").addEventListener("click", (e) => {
+      const btn = e.target.closest(".mode-toggle-btn");
+      if (!btn) return;
+      applyFieldVisibility("reps_or_duration", btn.dataset.mode);
     });
 
     document.getElementById("add-set-btn").addEventListener("click", () => addSetRow());
@@ -719,25 +822,52 @@
         exerciseSelectValue === CUSTOM_VALUE
           ? document.getElementById("log-exercise-custom").value.trim()
           : exerciseSelectValue;
-      const weight = parseFloat(document.getElementById("log-weight").value);
-      const targetReps = parseInt(document.getElementById("log-target-reps").value, 10);
-      const setInputs = document.querySelectorAll("#sets-container .set-reps-input");
-      const sets = Array.from(setInputs).map((input) => parseInt(input.value, 10));
 
-      if (!exercise || sets.length === 0 || sets.some((n) => Number.isNaN(n))) {
-        alert("운동 종목과 세트별 반복수를 모두 입력해주세요.");
-        return;
+      const { type, mode } = currentFieldState;
+      let entryFields = null;
+
+      if (type === "distance_time") {
+        const distanceKm = parseFloat(document.getElementById("log-distance-km").value);
+        const durationMinutes = parseFloat(document.getElementById("log-duration-minutes").value);
+        if (!exercise || Number.isNaN(distanceKm) || Number.isNaN(durationMinutes)) {
+          alert("운동 종목과 달린 거리, 시간을 모두 입력해주세요.");
+          return;
+        }
+        entryFields = { type, distanceKm, durationMinutes };
+      } else if (type === "reps_or_duration" && mode === "duration") {
+        const durationMinutes = parseFloat(document.getElementById("log-duration-minutes").value);
+        if (!exercise || Number.isNaN(durationMinutes)) {
+          alert("운동 종목과 운동 시간을 입력해주세요.");
+          return;
+        }
+        entryFields = { type, mode, durationMinutes };
+      } else {
+        const targetReps = parseInt(document.getElementById("log-target-reps").value, 10);
+        const setInputs = document.querySelectorAll("#sets-container .set-reps-input");
+        const sets = Array.from(setInputs).map((input) => parseInt(input.value, 10));
+
+        if (!exercise || sets.length === 0 || sets.some((n) => Number.isNaN(n)) || Number.isNaN(targetReps)) {
+          alert("운동 종목과 세트별 반복수를 모두 입력해주세요.");
+          return;
+        }
+
+        if (type === "strength") {
+          const weight = parseFloat(document.getElementById("log-weight").value);
+          entryFields = { type, weight, targetReps, sets };
+        } else {
+          entryFields = { type, mode, targetReps, sets };
+        }
       }
 
       const history = loadHistory();
       if (editingEntryId) {
         const idx = history.findIndex((en) => en.id === editingEntryId);
         if (idx !== -1) {
-          history[idx] = { ...history[idx], date, exercise, weight, targetReps, sets };
+          history[idx] = { id: history[idx].id, date, exercise, ...entryFields };
         }
         editingEntryId = null;
       } else {
-        history.push({ id: Date.now(), date, exercise, weight, targetReps, sets });
+        history.push({ id: Date.now(), date, exercise, ...entryFields });
       }
       saveHistory(history);
 
