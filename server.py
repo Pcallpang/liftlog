@@ -1,3 +1,4 @@
+import traceback
 from pathlib import Path
 
 from flask import Flask, jsonify, request, send_from_directory
@@ -124,6 +125,8 @@ def call_claude(api_key, system_prompt, messages):
         return None, f"Claude API 오류: {e.message}", 502
     except anthropic.APIConnectionError:
         return None, "Claude API에 연결할 수 없어요. 인터넷 연결을 확인해주세요.", 502
+    except Exception as e:
+        return None, f"Claude API 호출 중 오류가 발생했어요: {e}", 502
 
     if response.stop_reason == "refusal":
         return None, "죄송해요, 이 요청에는 답변할 수 없어요. 다르게 물어봐 주세요.", 200
@@ -163,43 +166,51 @@ def call_gemini(api_key, system_prompt, messages):
 
 @app.route("/api/chat", methods=["POST"])
 def chat():
-    data = request.get_json(force=True, silent=True) or {}
-    profile = data.get("profile") or {}
-    history = data.get("history") or []
-    messages = data.get("messages") or []
-    provider = data.get("provider") or "claude"
-    client_api_key = (data.get("apiKey") or "").strip()
+    try:
+        data = request.get_json(force=True, silent=True) or {}
+        profile = data.get("profile") or {}
+        history = data.get("history") or []
+        messages = data.get("messages") or []
+        provider = data.get("provider") or "claude"
+        client_api_key = (data.get("apiKey") or "").strip()
 
-    if not profile:
-        return jsonify({"error": "프로필 정보가 없습니다."}), 400
-    if not messages:
-        return jsonify({"error": "메시지가 없습니다."}), 400
+        if not profile:
+            return jsonify({"error": "프로필 정보가 없습니다."}), 400
+        if not messages:
+            return jsonify({"error": "메시지가 없습니다."}), 400
 
-    one_rm = profile.get("oneRM") or {}
-    system_prompt = SYSTEM_PROMPT_TEMPLATE.format(
-        height=profile.get("height"),
-        weight=profile.get("weight"),
-        squat=one_rm.get("squat"),
-        bench=one_rm.get("bench"),
-        deadlift=one_rm.get("deadlift"),
-        july_reference=JULY_REFERENCE,
-        history_summary=format_history(history),
-    )
+        one_rm = profile.get("oneRM") or {}
+        system_prompt = SYSTEM_PROMPT_TEMPLATE.format(
+            height=profile.get("height"),
+            weight=profile.get("weight"),
+            squat=one_rm.get("squat"),
+            bench=one_rm.get("bench"),
+            deadlift=one_rm.get("deadlift"),
+            july_reference=JULY_REFERENCE,
+            history_summary=format_history(history),
+        )
 
-    if not client_api_key:
-        return jsonify(
-            {"error": "API 키가 없어요. 화면 상단의 'API 설정'에서 본인의 Claude 또는 Gemini API 키를 입력해주세요."}
-        ), 400
+        if not client_api_key:
+            return jsonify(
+                {"error": "API 키가 없어요. 화면 상단의 'API 설정'에서 본인의 Claude 또는 Gemini API 키를 입력해주세요."}
+            ), 400
 
-    if provider == "gemini":
-        reply_text, error, status = call_gemini(client_api_key, system_prompt, messages)
-    else:
-        reply_text, error, status = call_claude(client_api_key, system_prompt, messages)
+        if provider == "gemini":
+            reply_text, error, status = call_gemini(client_api_key, system_prompt, messages)
+        else:
+            reply_text, error, status = call_claude(client_api_key, system_prompt, messages)
 
-    if error:
-        return jsonify({"error": error}), status
+        if error:
+            return jsonify({"error": error}), status
 
-    return jsonify({"reply": reply_text})
+        return jsonify({"reply": reply_text})
+    except Exception:
+        # Last-resort net: any unhandled exception here would otherwise fall
+        # through to Flask's HTML 500 page, which the client can't parse as
+        # JSON and shows only a generic fallback message. Log the real
+        # traceback server-side and still hand back JSON the client can show.
+        traceback.print_exc()
+        return jsonify({"error": "서버에서 오류가 발생했어요. 잠시 후 다시 시도해주세요."}), 500
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
 flask
-anthropic
-google-genai
+anthropic>=0.117.0
+google-genai>=2.12.1
 gunicorn

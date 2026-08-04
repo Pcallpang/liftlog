@@ -160,6 +160,19 @@
       dayTitles: loadDayTitles(),
       exportedAt: new Date().toISOString(),
     };
+
+    const apiSettings = loadApiSettings();
+    if (apiSettings.apiKey) {
+      const includeKey = confirm(
+        "API 키도 백업 파일에 포함할까요?\n" +
+          "iOS Safari는 오래 안 쓰면 저장된 키를 지우는 경우가 있어, 포함해두면 복원이 편해요.\n" +
+          "단, 백업 파일에 키가 그대로 담기니 다른 사람과 공유하지 마세요."
+      );
+      if (includeKey) {
+        data.apiSettings = apiSettings;
+      }
+    }
+
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -190,6 +203,7 @@
       if (Array.isArray(data.history)) saveHistory(data.history);
       if (Array.isArray(data.chat)) saveChat(data.chat);
       if (data.dayTitles) saveDayTitles(data.dayTitles);
+      if (data.apiSettings && data.apiSettings.apiKey) saveApiSettings(data.apiSettings);
 
       alert("백업 데이터를 불러왔어요.");
       if (loadProfile()) {
@@ -869,6 +883,13 @@
   document.addEventListener("DOMContentLoaded", () => {
     populatePartSelect();
     updateTimerDisplay();
+
+    // Best-effort: ask the browser not to evict localStorage under storage
+    // pressure or Safari's inactivity cap. Not universally honored on iOS,
+    // but harmless to request and helps in some iOS/PWA combinations.
+    if (navigator.storage && navigator.storage.persist) {
+      navigator.storage.persist().catch(() => {});
+    }
 
     document.querySelectorAll(".bottom-nav-btn[data-tab-target]").forEach((btn) => {
       btn.addEventListener("click", () => setActiveTab(btn.dataset.tabTarget));
