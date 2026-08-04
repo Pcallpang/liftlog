@@ -6,6 +6,9 @@
   const CHAT_KEY = "liftlog_chat";
   const DAY_TITLES_KEY = "liftlog_day_titles";
   const API_SETTINGS_KEY = "liftlog_api_settings";
+  const ACTIVE_TAB_KEY = "liftlog_active_tab";
+
+  const TABS = ["chat", "log", "timer", "settings"];
 
   const CUSTOM_VALUE = "__custom__";
 
@@ -439,14 +442,29 @@
 
   // ---------- screens ----------
 
+  // The tabs are purely a mobile affordance - on desktop every section stays
+  // visible and the CSS ignores data-active-tab entirely.
+  function setActiveTab(tab) {
+    if (!TABS.includes(tab)) tab = "chat";
+    document.body.dataset.activeTab = tab;
+    localStorage.setItem(ACTIVE_TAB_KEY, tab);
+    document.querySelectorAll(".bottom-nav-btn").forEach((btn) => {
+      btn.setAttribute("aria-current", btn.dataset.tabTarget === tab ? "page" : "false");
+    });
+    window.scrollTo(0, 0);
+  }
+
   function showMainScreen() {
     document.getElementById("onboarding-screen").classList.add("hidden");
     document.getElementById("main-screen").classList.remove("hidden");
+    document.body.classList.add("main-active");
+    setActiveTab(localStorage.getItem(ACTIVE_TAB_KEY) || "chat");
     renderChatHistory();
     renderHistory();
   }
 
   function showOnboardingScreen() {
+    document.body.classList.remove("main-active");
     document.getElementById("main-screen").classList.add("hidden");
     document.getElementById("log-form-section").classList.add("hidden");
     document.getElementById("log-form-placeholder").classList.remove("hidden");
@@ -619,6 +637,7 @@
 
   function startEditEntry(entry) {
     editingEntryId = entry.id;
+    setActiveTab("log");
     document.getElementById("log-form-heading").textContent = "운동 기록 수정하기";
     document.getElementById("log-form-placeholder").classList.add("hidden");
     document.getElementById("log-form-section").classList.remove("hidden");
@@ -708,6 +727,10 @@
   function updateTimerDisplay() {
     document.getElementById("timer-display").textContent = formatDuration(timerCurrentElapsedMs());
     document.getElementById("segment-timer-display").textContent = formatDuration(restCurrentElapsedMs());
+    // the timer lives in its own tab, so surface "still running" on the nav
+    document
+      .getElementById("nav-timer-btn")
+      .classList.toggle("timer-active", timerRunning || restRunning);
   }
 
   function startPauseTimer() {
@@ -772,6 +795,10 @@
     populatePartSelect();
     updateTimerDisplay();
 
+    document.querySelectorAll(".bottom-nav-btn").forEach((btn) => {
+      btn.addEventListener("click", () => setActiveTab(btn.dataset.tabTarget));
+    });
+
     document.getElementById("timer-start-btn").addEventListener("click", startPauseTimer);
     document.getElementById("timer-lap-btn").addEventListener("click", toggleRestTimer);
     document.getElementById("timer-reset-btn").addEventListener("click", resetTimer);
@@ -827,6 +854,7 @@
 
     document.getElementById("open-log-form-btn").addEventListener("click", () => {
       resetLogForm();
+      setActiveTab("log");
       document.getElementById("log-form-placeholder").classList.add("hidden");
       document.getElementById("log-form-section").classList.remove("hidden");
     });

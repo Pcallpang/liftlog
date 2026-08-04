@@ -57,7 +57,7 @@
   <section id="main-screen" class="screen hidden">
     <header class="main-header">
       <h1>오늘의 운동 추천</h1>
-      <div class="main-header-actions">
+      <div class="main-header-actions" data-tab="settings">
         <button id="open-settings-btn" class="btn btn-ghost btn-small">API 설정</button>
         <button id="edit-profile-btn" class="btn btn-ghost btn-small">프로필 수정</button>
         <button id="export-data-btn" class="btn btn-ghost btn-small">내보내기</button>
@@ -66,7 +66,7 @@
       </div>
     </header>
 
-    <section class="chat-section card">
+    <section class="chat-section card" data-tab="chat">
       <div class="chat-section-header">
         <h2>AI 트레이너와 대화하기</h2>
         <button type="button" id="clear-chat-btn" class="btn btn-ghost btn-small">대화 초기화</button>
@@ -81,7 +81,7 @@
 
     <section class="log-panel-grid">
       <!-- 왼쪽: 날짜별 운동 히스토리 -->
-      <div class="history-column">
+      <div class="history-column" data-tab="log">
         <div class="history-column-header">
           <h2>날짜별 운동 히스토리</h2>
           <button id="open-log-form-btn" class="btn btn-primary btn-small">+ 오늘 운동 기록하기</button>
@@ -92,7 +92,7 @@
 
       <!-- 오른쪽: 운동 기록 입력 폼 -->
       <div class="form-column">
-        <div class="card timer-card">
+        <div class="card timer-card" data-tab="timer">
           <h2>타이머</h2>
           <div id="timer-display" class="timer-display">00:00</div>
           <div class="segment-timer">
@@ -107,11 +107,11 @@
           <ul id="timer-laps" class="timer-laps"></ul>
         </div>
 
-        <div id="log-form-placeholder" class="card log-form-placeholder">
+        <div id="log-form-placeholder" class="card log-form-placeholder" data-tab="log">
           <p class="empty-message">왼쪽의 "오늘 운동 기록하기" 버튼을 누르면 여기에 입력 폼이 나타나요.</p>
         </div>
 
-        <section id="log-form-section" class="card log-form-card hidden">
+        <section id="log-form-section" class="card log-form-card hidden" data-tab="log">
           <h2 id="log-form-heading">운동 기록하기</h2>
           <form id="log-form">
             <div class="form-row">
@@ -172,6 +172,25 @@
         </section>
       </div>
     </section>
+
+    <nav class="bottom-nav" id="bottom-nav" aria-label="주요 화면">
+      <button type="button" class="bottom-nav-btn" data-tab-target="chat" aria-current="page">
+        <span class="bottom-nav-icon">💬</span>
+        <span class="bottom-nav-label">대화</span>
+      </button>
+      <button type="button" class="bottom-nav-btn" data-tab-target="log" aria-current="false">
+        <span class="bottom-nav-icon">📋</span>
+        <span class="bottom-nav-label">기록</span>
+      </button>
+      <button type="button" class="bottom-nav-btn" id="nav-timer-btn" data-tab-target="timer" aria-current="false">
+        <span class="bottom-nav-icon">⏱️<span class="bottom-nav-dot"></span></span>
+        <span class="bottom-nav-label">타이머</span>
+      </button>
+      <button type="button" class="bottom-nav-btn" data-tab-target="settings" aria-current="false">
+        <span class="bottom-nav-icon">⚙️</span>
+        <span class="bottom-nav-label">설정</span>
+      </button>
+    </nav>
   </section>
 
   <!-- 프로필 수정 모달 -->
