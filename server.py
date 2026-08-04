@@ -102,6 +102,11 @@ def static_files(filename):
     return "Not Found", 404
 
 
+@app.route("/assets/<path:filename>")
+def assets(filename):
+    return send_from_directory(BASE_DIR / "assets", filename)
+
+
 def call_claude(api_key, system_prompt, messages):
     client = anthropic.Anthropic(api_key=api_key)
     try:

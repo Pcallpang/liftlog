@@ -21,6 +21,7 @@
   <!-- 온보딩 화면 -->
   <section id="onboarding-screen" class="screen">
     <div class="card onboarding-card">
+      <img class="mascot-illustration" src="assets/mascots/miyo-main.png" alt="" />
       <h1>오늘의 운동 추천</h1>
       <p class="subtitle">기본 정보를 입력하면 점진적 과부하 원칙에 따라 운동을 추천해드려요.</p>
       <form id="onboarding-form">
@@ -72,7 +73,10 @@
         <button type="button" id="clear-chat-btn" class="btn btn-ghost btn-small">대화 초기화</button>
       </div>
       <div id="chat-messages" class="chat-messages"></div>
-      <p id="chat-empty" class="empty-message">"오늘 뭐 하면 좋을까?"처럼 편하게 물어보세요.</p>
+      <div id="chat-empty" class="empty-message">
+        <img class="mascot-illustration mascot-illustration-small" src="assets/mascots/miyo-main.png" alt="" />
+        <p>"오늘 뭐 하면 좋을까?"처럼 편하게 물어보세요.</p>
+      </div>
       <form id="chat-form" class="chat-form">
         <input type="text" id="chat-input" placeholder="예: 오늘 뭐 하면 좋을까?" autocomplete="off" required />
         <button type="submit" class="btn btn-primary" id="chat-send-btn">전송</button>
@@ -87,7 +91,10 @@
           <button id="open-log-form-btn" class="btn btn-primary btn-small">+ 오늘 운동 기록하기</button>
         </div>
         <div id="history-list" class="history-list"></div>
-        <p id="history-empty" class="empty-message hidden">아직 기록된 운동이 없어요. 오른쪽에서 기록을 추가해보세요.</p>
+        <div id="history-empty" class="empty-message hidden">
+          <img class="mascot-illustration mascot-illustration-small" src="assets/mascots/miyo-advice.png" alt="" />
+          <p>아직 기록된 운동이 없어요. 오른쪽에서 기록을 추가해보세요.</p>
+        </div>
       </div>
 
       <!-- 오른쪽: 운동 기록 입력 폼 -->
@@ -190,6 +197,15 @@
         <span class="bottom-nav-icon">⚙️</span>
         <span class="bottom-nav-label">설정</span>
       </button>
+      <a
+        class="bottom-nav-btn"
+        href="https://www.instagram.com/me_yotoon?igsh=MXNidXNrcnNjZGY3Zw%3D%3D"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        <span class="bottom-nav-icon">🐾</span>
+        <span class="bottom-nav-label">미요툰</span>
+      </a>
     </nav>
   </section>
 
@@ -252,6 +268,11 @@
         </div>
       </form>
     </div>
+  </div>
+
+  <div id="mascot-toast" class="mascot-toast">
+    <img id="mascot-toast-img" class="mascot-toast-img" src="" alt="" />
+    <p id="mascot-toast-text" class="mascot-toast-text"></p>
   </div>
 
 </div>

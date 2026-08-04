@@ -10,6 +10,67 @@
 
   const TABS = ["chat", "log", "timer", "settings"];
 
+  // ---------- mascot ----------
+
+  const MASCOTS = {
+    main: "miyo-main.png", // 더드미요 - 앱의 메인 마스코트
+    default: "miyo-default.png", // 미요
+    teen: "miyo-teen.png", // 미요-X (사춘기형)
+    god: "miyo-god.png", // 갓-미요
+    sweat: "miyo-sweat.png", // 삐질미요
+    pure: "miyo-pure.png", // 맑눈광미요
+    blunt: "miyo-blunt.png", // 무뚝미요
+    angry: "miyo-angry.png", // 빡미요
+    advice: "miyo-advice.png", // 훈수미요
+    asker: "miyo-asker.png", // 핑프미요
+    rainbow: "miyo-rainbow.png", // 무지개미요
+    parrot: "miyo-parrot.png", // 앵무미요
+    why: "miyo-why.png", // 왜요미요
+    smug: "miyo-smug.png", // 야르미요
+    cheer: "miyo-cheer.png", // 갸루미요
+  };
+
+  function mascotSrc(mood) {
+    return `assets/mascots/${MASCOTS[mood] || MASCOTS.main}`;
+  }
+
+  let mascotToastTimer = null;
+
+  function showMascotToast(mood, message) {
+    const toast = document.getElementById("mascot-toast");
+    document.getElementById("mascot-toast-img").src = mascotSrc(mood);
+    document.getElementById("mascot-toast-text").textContent = message;
+    toast.classList.add("mascot-toast-visible");
+    clearTimeout(mascotToastTimer);
+    mascotToastTimer = setTimeout(() => {
+      toast.classList.remove("mascot-toast-visible");
+    }, 2500);
+  }
+
+  function showSaveFeedback(entryFields) {
+    const success = isEntrySuccess(entryFields);
+    if (success === true) {
+      showMascotToast("god", "목표 세트 달성! 오늘도 완벽하네요.");
+    } else if (success === false) {
+      showMascotToast("sweat", "목표엔 살짝 못 미쳤지만 기록은 남았어요.");
+    } else {
+      showMascotToast("advice", "오늘 운동 기록 완료!");
+    }
+  }
+
+  // Very light keyword read of the assistant's reply - just enough to pick a
+  // fitting expression, never used for anything else. Falls back to the
+  // neutral default whenever nothing matches.
+  function pickMascotMood(replyText) {
+    const text = replyText || "";
+    if (/축하|훌륭|최고|대단|자랑/.test(text)) return "god";
+    if (/조심|무리하지|부상|천천히|쉬어/.test(text)) return "sweat";
+    if (/화이팅|힘내|가보자|해봐요/.test(text)) return "cheer";
+    if (/\?\s*$/.test(text.trim())) return "why";
+    if (/추천|이렇게|해보세요|어때요/.test(text)) return "advice";
+    return "main";
+  }
+
   const CUSTOM_VALUE = "__custom__";
 
   const EXERCISE_PARTS = {
@@ -271,7 +332,21 @@
     } else {
       bubble.textContent = text;
     }
-    list.appendChild(bubble);
+
+    if (role === "assistant") {
+      const row = document.createElement("div");
+      row.className = "chat-row";
+      const avatar = document.createElement("img");
+      avatar.className = "chat-avatar";
+      avatar.src = mascotSrc(pickMascotMood(text));
+      avatar.alt = "";
+      row.appendChild(avatar);
+      row.appendChild(bubble);
+      list.appendChild(row);
+    } else {
+      list.appendChild(bubble);
+    }
+
     list.scrollTop = list.scrollHeight;
     return bubble;
   }
@@ -448,7 +523,7 @@
     if (!TABS.includes(tab)) tab = "chat";
     document.body.dataset.activeTab = tab;
     localStorage.setItem(ACTIVE_TAB_KEY, tab);
-    document.querySelectorAll(".bottom-nav-btn").forEach((btn) => {
+    document.querySelectorAll(".bottom-nav-btn[data-tab-target]").forEach((btn) => {
       btn.setAttribute("aria-current", btn.dataset.tabTarget === tab ? "page" : "false");
     });
     window.scrollTo(0, 0);
@@ -795,7 +870,7 @@
     populatePartSelect();
     updateTimerDisplay();
 
-    document.querySelectorAll(".bottom-nav-btn").forEach((btn) => {
+    document.querySelectorAll(".bottom-nav-btn[data-tab-target]").forEach((btn) => {
       btn.addEventListener("click", () => setActiveTab(btn.dataset.tabTarget));
     });
 
@@ -954,6 +1029,7 @@
       document.getElementById("log-form-section").classList.add("hidden");
       document.getElementById("log-form-placeholder").classList.remove("hidden");
       renderHistory();
+      showSaveFeedback(entryFields);
     });
 
     document.getElementById("reset-btn").addEventListener("click", () => {
