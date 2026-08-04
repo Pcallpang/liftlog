@@ -1,5 +1,5 @@
 {
-  "name": "오늘의 운동 추천",
+  "name": "미요의 운동 추천",
   "short_name": "LiftLog",
   "description": "AI 기반 운동 추천 및 기록 앱",
   "start_url": "/",
