@@ -2,3 +2,6 @@
 __pycache__/
 *.pyc
 *.pdf
+
+# Marketing assets - large binaries, not part of the app
+promo/
