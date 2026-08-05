@@ -5,12 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>미요의 운동 추천</title>
 <link rel="manifest" href="manifest.json" />
-<meta name="theme-color" content="#0d0d0d" />
+<meta name="theme-color" content="#FFFDE7" />
 <link rel="icon" href="icon.svg" type="image/svg+xml" />
 <link rel="apple-touch-icon" href="icon.svg" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="LiftLog" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -107,6 +110,7 @@
       <div class="form-column">
         <div class="card timer-card" data-tab="timer">
           <h2>타이머</h2>
+          <img class="mascot-illustration mascot-illustration-small" src="assets/mascots/miyo-sweat.png" alt="" />
           <div id="timer-display" class="timer-display">00:00</div>
           <div class="segment-timer">
             <span class="segment-timer-label">쉬는 시간</span>
@@ -121,7 +125,10 @@
         </div>
 
         <div id="log-form-placeholder" class="card log-form-placeholder" data-tab="log">
-          <p class="empty-message">왼쪽의 "오늘 운동 기록하기" 버튼을 누르면 여기에 입력 폼이 나타나요.</p>
+          <div class="empty-message">
+            <img class="mascot-illustration mascot-illustration-small" src="assets/mascots/miyo-angry.png" alt="" />
+            <p>왼쪽의 "오늘 운동 기록하기" 버튼을 누르면 여기에 입력 폼이 나타나요.</p>
+          </div>
         </div>
 
         <section id="log-form-section" class="card log-form-card hidden" data-tab="log">
