@@ -36,6 +36,7 @@
   --scrollbar-thumb: rgba(78, 52, 46, 0.28);
   --bg-glow-1: rgba(255, 245, 157, 0.55);
   --bg-glow-2: rgba(224, 242, 241, 0.7);
+  --nav-bg: rgba(255, 253, 231, 0.94);
 
   --bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
 
@@ -81,6 +82,7 @@
   --scrollbar-thumb: rgba(255, 255, 255, 0.25);
   --bg-glow-1: rgba(255, 171, 145, 0.08);
   --bg-glow-2: rgba(255, 255, 255, 0.04);
+  --nav-bg: rgba(10, 10, 10, 0.94);
 }
 
 * {
@@ -453,7 +455,7 @@ select {
   bottom: 0;
   z-index: 50;
   gap: 2px;
-  background: rgba(255, 253, 231, 0.94);
+  background: var(--nav-bg);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-top: 2px solid var(--color-border-strong);
