@@ -45,7 +45,16 @@
       );
       return;
     }
-    alert("이 브라우저에서는 홈 화면 추가가 지원되지 않아요. Chrome이나 Safari로 열어주세요.");
+    // Android Chrome/Samsung Internet only fire beforeinstallprompt once
+    // their own engagement heuristics are satisfied (repeat visits, time on
+    // site, etc.), so it may never have fired yet even though the browser
+    // fully supports installing - fall back to manual steps instead of
+    // pretending it's unsupported.
+    alert(
+      "브라우저가 아직 설치 창을 자동으로 띄우지 않았어요.\n\n" +
+        "오른쪽 위 메뉴(⋮)를 눌러 '앱 설치' 또는 '홈 화면에 추가'를 선택해주세요.\n" +
+        "(삼성 인터넷은 메뉴 → '홈 화면에 추가')"
+    );
   }
 
   // ---------- mascot ----------
@@ -929,10 +938,12 @@
       navigator.storage.persist().catch(() => {});
     }
 
-    // iOS never fires beforeinstallprompt, so surface the button proactively
-    // there (it just shows instructions on click); other browsers only get
-    // it once beforeinstallprompt actually fires.
-    if (!isStandalone && isIOS) {
+    // Show the button on any non-standalone browser, not just once
+    // beforeinstallprompt fires - Android's engagement heuristics for that
+    // event are unreliable, so most visitors would otherwise never see it.
+    // handleInstallClick() falls back to manual instructions when there's
+    // no captured native prompt to trigger.
+    if (!isStandalone) {
       document.getElementById("install-app-btn").classList.remove("hidden");
     }
     document.getElementById("install-app-btn").addEventListener("click", handleInstallClick);
