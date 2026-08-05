@@ -1,5 +1,5 @@
 :root {
-  color-scheme: light;
+  color-scheme: only light;
 
   --color-bg: #FFFDE7;
   --color-bg-alt: #E0F2F1;
@@ -47,7 +47,7 @@
 }
 
 :root[data-theme="dark"] {
-  color-scheme: dark;
+  color-scheme: only dark;
 
   --color-bg: #241C1A;
   --color-bg-alt: #1E2A28;

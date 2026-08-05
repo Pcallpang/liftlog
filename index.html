@@ -5,13 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>미요의 운동 추천</title>
 <link rel="manifest" href="manifest.json" />
-<!-- The app now has its own manual light/dark toggle (not tied to the OS
-     setting), so this declares support for both - which still tells mobile
+<!-- The app has its own manual light/dark toggle (not tied to the OS
+     setting). "only light" is the strong opt-out form that keeps mobile
      browsers (Android Chrome/Samsung Internet's "force dark websites"
-     setting) that the page manages its own colors and shouldn't be
-     auto-inverted. app.js keeps this and color-scheme in sync with the
-     user's actual choice. -->
-<meta name="color-scheme" content="light dark" />
+     setting in particular) from re-darkening a page we deliberately set to
+     light - app.js flips this to "only dark" (and back) to match whatever
+     the user actually picks, as early as possible to avoid a flash. -->
+<meta name="color-scheme" content="only light" id="color-scheme-meta" />
 <meta name="theme-color" content="#FFFDE7" id="theme-color-meta" />
 <link rel="icon" href="icon.svg" type="image/svg+xml" />
 <link rel="apple-touch-icon" href="icon.svg" />

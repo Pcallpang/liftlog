@@ -20,8 +20,17 @@
   function applyTheme(theme) {
     const resolved = theme === "dark" ? "dark" : "light";
     document.documentElement.dataset.theme = resolved;
-    const meta = document.getElementById("theme-color-meta");
-    if (meta) meta.setAttribute("content", THEME_COLORS[resolved]);
+    document.documentElement.style.colorScheme = `only ${resolved}`;
+
+    const themeColorMeta = document.getElementById("theme-color-meta");
+    if (themeColorMeta) themeColorMeta.setAttribute("content", THEME_COLORS[resolved]);
+
+    // "only light"/"only dark" (vs. just "light"/"dark") is the strong form -
+    // it tells mobile browsers this page is locked to one scheme right now,
+    // so their forced-dark-mode heuristics leave it alone instead of trying
+    // to "help" by re-darkening a page we deliberately set to light.
+    const colorSchemeMeta = document.getElementById("color-scheme-meta");
+    if (colorSchemeMeta) colorSchemeMeta.setAttribute("content", `only ${resolved}`);
   }
 
   applyTheme(localStorage.getItem(THEME_KEY) || "light");
