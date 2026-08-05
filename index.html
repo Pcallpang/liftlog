@@ -5,11 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>미요의 운동 추천</title>
 <link rel="manifest" href="manifest.json" />
-<!-- Tells mobile browsers (Android Chrome/Samsung Internet's "force dark
-     websites" setting in particular) that this page is light-theme-only, so
-     they don't auto-invert/recolor it to match the device's dark mode. -->
-<meta name="color-scheme" content="light" />
-<meta name="theme-color" content="#FFFDE7" />
+<!-- The app now has its own manual light/dark toggle (not tied to the OS
+     setting), so this declares support for both - which still tells mobile
+     browsers (Android Chrome/Samsung Internet's "force dark websites"
+     setting) that the page manages its own colors and shouldn't be
+     auto-inverted. app.js keeps this and color-scheme in sync with the
+     user's actual choice. -->
+<meta name="color-scheme" content="light dark" />
+<meta name="theme-color" content="#FFFDE7" id="theme-color-meta" />
 <link rel="icon" href="icon.svg" type="image/svg+xml" />
 <link rel="apple-touch-icon" href="icon.svg" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -71,13 +74,17 @@
         <button id="export-data-btn" class="btn btn-ghost btn-small">내보내기</button>
         <button id="main-import-btn" class="btn btn-ghost btn-small">가져오기</button>
         <button id="reset-btn" class="btn btn-ghost btn-small">데이터 초기화</button>
-        <button id="install-app-btn" class="btn btn-ghost btn-small hidden">앱 설치하기</button>
+        <button id="install-app-btn" class="btn btn-ghost btn-small">앱 설치하기</button>
         <a
           class="btn btn-ghost btn-small"
           href="https://www.instagram.com/me_yotoon?igsh=MXNidXNrcnNjZGY3Zw%3D%3D"
           target="_blank"
           rel="noopener noreferrer"
         >미요툰 보러가기</a>
+        <div class="mode-toggle theme-toggle" id="theme-toggle">
+          <button type="button" class="mode-toggle-btn" data-theme-choice="light">☀️ 라이트</button>
+          <button type="button" class="mode-toggle-btn" data-theme-choice="dark">🌙 다크</button>
+        </div>
       </div>
     </header>
 

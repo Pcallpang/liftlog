@@ -7,8 +7,24 @@
   const DAY_TITLES_KEY = "liftlog_day_titles";
   const API_SETTINGS_KEY = "liftlog_api_settings";
   const ACTIVE_TAB_KEY = "liftlog_active_tab";
+  const THEME_KEY = "liftlog_theme";
 
   const TABS = ["chat", "log", "timer", "settings"];
+
+  // ---------- theme ----------
+
+  // Applied immediately (not inside DOMContentLoaded) so the correct theme
+  // is set before first paint - avoids a flash of the wrong theme.
+  const THEME_COLORS = { light: "#FFFDE7", dark: "#241C1A" };
+
+  function applyTheme(theme) {
+    const resolved = theme === "dark" ? "dark" : "light";
+    document.documentElement.dataset.theme = resolved;
+    const meta = document.getElementById("theme-color-meta");
+    if (meta) meta.setAttribute("content", THEME_COLORS[resolved]);
+  }
+
+  applyTheme(localStorage.getItem(THEME_KEY) || "light");
 
   // ---------- add to home screen ----------
 
@@ -19,23 +35,27 @@
     window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
   const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
 
+  let justInstalled = false;
+
   window.addEventListener("beforeinstallprompt", (e) => {
     e.preventDefault();
     deferredInstallPrompt = e;
-    document.getElementById("install-app-btn").classList.remove("hidden");
   });
 
   window.addEventListener("appinstalled", () => {
     deferredInstallPrompt = null;
-    document.getElementById("install-app-btn").classList.add("hidden");
+    justInstalled = true;
   });
 
   async function handleInstallClick() {
+    if (isStandalone || justInstalled) {
+      alert("이미 홈 화면에 설치되어 있어요!");
+      return;
+    }
     if (deferredInstallPrompt) {
       deferredInstallPrompt.prompt();
       await deferredInstallPrompt.userChoice;
       deferredInstallPrompt = null;
-      document.getElementById("install-app-btn").classList.add("hidden");
       return;
     }
     if (isIOS) {
@@ -938,15 +958,23 @@
       navigator.storage.persist().catch(() => {});
     }
 
-    // Show the button on any non-standalone browser, not just once
-    // beforeinstallprompt fires - Android's engagement heuristics for that
+    // Always visible (per user request) rather than gated on
+    // beforeinstallprompt firing - Android's engagement heuristics for that
     // event are unreliable, so most visitors would otherwise never see it.
-    // handleInstallClick() falls back to manual instructions when there's
-    // no captured native prompt to trigger.
-    if (!isStandalone) {
-      document.getElementById("install-app-btn").classList.remove("hidden");
-    }
+    // handleInstallClick() falls back to manual instructions, or a "already
+    // installed" message, when there's nothing to prompt.
     document.getElementById("install-app-btn").addEventListener("click", handleInstallClick);
+
+    document.querySelectorAll("#theme-toggle .mode-toggle-btn").forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.themeChoice === document.documentElement.dataset.theme);
+      btn.addEventListener("click", () => {
+        applyTheme(btn.dataset.themeChoice);
+        localStorage.setItem(THEME_KEY, btn.dataset.themeChoice);
+        document.querySelectorAll("#theme-toggle .mode-toggle-btn").forEach((b) => {
+          b.classList.toggle("active", b === btn);
+        });
+      });
+    });
 
     document.querySelectorAll(".bottom-nav-btn[data-tab-target]").forEach((btn) => {
       btn.addEventListener("click", () => setActiveTab(btn.dataset.tabTarget));

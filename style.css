@@ -29,6 +29,13 @@
   --radius-sm: 18px;
   --shadow: 4px 6px 0 rgba(78, 52, 46, 0.10), 6px 12px 24px rgba(78, 52, 46, 0.12);
   --shadow-sm: 3px 4px 0 rgba(78, 52, 46, 0.10), 3px 8px 16px rgba(78, 52, 46, 0.10);
+  --shadow-ghost: 0 3px 0 rgba(78, 52, 46, 0.28);
+  --shadow-ghost-active: 0 1px 0 rgba(78, 52, 46, 0.28);
+  --shadow-pop: 4px 6px 0 rgba(255, 138, 101, 0.4);
+  --overlay-tint: rgba(78, 52, 46, 0.45);
+  --scrollbar-thumb: rgba(78, 52, 46, 0.28);
+  --bg-glow-1: rgba(255, 245, 157, 0.55);
+  --bg-glow-2: rgba(224, 242, 241, 0.7);
 
   --bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
 
@@ -37,6 +44,43 @@
      plain, highly-readable Korean system stack. */
   --font-display: "Jua", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
   --font-body: "Malgun Gothic", "Apple SD Gothic Neo", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --color-bg: #241C1A;
+  --color-bg-alt: #1E2A28;
+  --color-surface: #2E2420;
+  --color-surface-raised: #352A25;
+  --color-border: rgba(255, 243, 224, 0.16);
+  --color-border-strong: #F5E6D3;
+
+  --color-text: #FFF3E0;
+  --color-text-muted: #D9BBA6;
+  --color-text-dim: #A98F7E;
+
+  --color-accent: #FFAB91;
+  --color-accent-hover: #FFC1AC;
+  --color-accent-dim: rgba(255, 171, 145, 0.22);
+  --color-accent-text: #2A1B15;
+
+  --color-yellow: #FFF59D;
+  --color-yellow-dim: rgba(255, 245, 157, 0.22);
+
+  --color-danger: #FF7A6B;
+  --color-warning-bg: rgba(255, 183, 77, 0.16);
+  --color-warning-border: #FFB74D;
+  --color-warning-text: #FFCC80;
+
+  --shadow: 4px 6px 0 rgba(0, 0, 0, 0.35), 6px 12px 24px rgba(0, 0, 0, 0.3);
+  --shadow-sm: 3px 4px 0 rgba(0, 0, 0, 0.35), 3px 8px 16px rgba(0, 0, 0, 0.28);
+  --shadow-ghost: 0 3px 0 rgba(0, 0, 0, 0.4);
+  --shadow-ghost-active: 0 1px 0 rgba(0, 0, 0, 0.4);
+  --overlay-tint: rgba(0, 0, 0, 0.6);
+  --scrollbar-thumb: rgba(255, 243, 224, 0.22);
+  --bg-glow-1: rgba(255, 171, 145, 0.16);
+  --bg-glow-2: rgba(30, 42, 40, 0.9);
 }
 
 * {
@@ -54,8 +98,8 @@ body {
   word-break: keep-all;
   font-family: var(--font-body);
   background:
-    radial-gradient(circle at 15% -10%, rgba(255, 245, 157, 0.55) 0%, transparent 45%),
-    radial-gradient(circle at 100% 0%, rgba(224, 242, 241, 0.7) 0%, transparent 40%),
+    radial-gradient(circle at 15% -10%, var(--bg-glow-1) 0%, transparent 45%),
+    radial-gradient(circle at 100% 0%, var(--bg-glow-2) 0%, transparent 40%),
     var(--color-bg);
   background-attachment: fixed;
   color: var(--color-text);
@@ -271,7 +315,7 @@ select {
   background: var(--color-surface);
   color: var(--color-text);
   border: 2px solid var(--color-border-strong);
-  box-shadow: 0 3px 0 rgba(78, 52, 46, 0.28);
+  box-shadow: var(--shadow-ghost);
 }
 
 .btn-ghost:hover {
@@ -283,7 +327,7 @@ select {
 
 .btn-ghost:active {
   transform: translateY(2px) scale(0.97);
-  box-shadow: 0 1px 0 rgba(78, 52, 46, 0.28);
+  box-shadow: var(--shadow-ghost-active);
 }
 
 .mode-toggle {
@@ -311,6 +355,17 @@ select {
   background: var(--color-yellow-dim);
   color: var(--color-text);
   transform: scale(1.03);
+}
+
+.theme-toggle {
+  display: inline-flex;
+}
+
+.theme-toggle .mode-toggle-btn {
+  flex: none;
+  padding: 9px 14px;
+  min-height: 44px;
+  font-size: 0.88rem;
 }
 
 .mode-toggle-btn.active {
@@ -468,7 +523,7 @@ body:not(.main-active) .bottom-nav {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(78, 52, 46, 0.45);
+  background: var(--overlay-tint);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -524,7 +579,7 @@ body:not(.main-active) .bottom-nav {
 }
 
 .chat-messages::-webkit-scrollbar-thumb {
-  background: rgba(78, 52, 46, 0.28);
+  background: var(--scrollbar-thumb);
   border-radius: 999px;
 }
 
@@ -852,7 +907,7 @@ body:not(.main-active) .bottom-nav {
 }
 
 .history-day-compact:hover {
-  box-shadow: 4px 6px 0 rgba(255, 138, 101, 0.4);
+  box-shadow: var(--shadow-pop);
   transform: translateY(-2px);
 }
 
@@ -862,7 +917,7 @@ body:not(.main-active) .bottom-nav {
 
 .history-day-compact[aria-expanded="true"] {
   background: var(--color-accent-dim);
-  box-shadow: 4px 6px 0 rgba(255, 138, 101, 0.4);
+  box-shadow: var(--shadow-pop);
 }
 
 .history-day-chevron {
