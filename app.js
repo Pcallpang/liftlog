@@ -15,7 +15,7 @@
 
   // Applied immediately (not inside DOMContentLoaded) so the correct theme
   // is set before first paint - avoids a flash of the wrong theme.
-  const THEME_COLORS = { light: "#FFFDE7", dark: "#241C1A" };
+  const THEME_COLORS = { light: "#FFFDE7", dark: "#000000" };
 
   function applyTheme(theme) {
     const resolved = theme === "dark" ? "dark" : "light";

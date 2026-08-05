@@ -49,38 +49,38 @@
 :root[data-theme="dark"] {
   color-scheme: only dark;
 
-  --color-bg: #241C1A;
-  --color-bg-alt: #1E2A28;
-  --color-surface: #2E2420;
-  --color-surface-raised: #352A25;
-  --color-border: rgba(255, 243, 224, 0.16);
-  --color-border-strong: #F5E6D3;
+  --color-bg: #000000;
+  --color-bg-alt: #0A0A0A;
+  --color-surface: #121212;
+  --color-surface-raised: #1A1A1A;
+  --color-border: rgba(255, 255, 255, 0.18);
+  --color-border-strong: #FFFFFF;
 
-  --color-text: #FFF3E0;
-  --color-text-muted: #D9BBA6;
-  --color-text-dim: #A98F7E;
+  --color-text: #FFFFFF;
+  --color-text-muted: #CCCCCC;
+  --color-text-dim: #888888;
 
   --color-accent: #FFAB91;
   --color-accent-hover: #FFC1AC;
   --color-accent-dim: rgba(255, 171, 145, 0.22);
-  --color-accent-text: #2A1B15;
+  --color-accent-text: #000000;
 
   --color-yellow: #FFF59D;
-  --color-yellow-dim: rgba(255, 245, 157, 0.22);
+  --color-yellow-dim: rgba(255, 245, 157, 0.18);
 
   --color-danger: #FF7A6B;
-  --color-warning-bg: rgba(255, 183, 77, 0.16);
+  --color-warning-bg: rgba(255, 183, 77, 0.14);
   --color-warning-border: #FFB74D;
   --color-warning-text: #FFCC80;
 
-  --shadow: 4px 6px 0 rgba(0, 0, 0, 0.35), 6px 12px 24px rgba(0, 0, 0, 0.3);
-  --shadow-sm: 3px 4px 0 rgba(0, 0, 0, 0.35), 3px 8px 16px rgba(0, 0, 0, 0.28);
-  --shadow-ghost: 0 3px 0 rgba(0, 0, 0, 0.4);
-  --shadow-ghost-active: 0 1px 0 rgba(0, 0, 0, 0.4);
-  --overlay-tint: rgba(0, 0, 0, 0.6);
-  --scrollbar-thumb: rgba(255, 243, 224, 0.22);
-  --bg-glow-1: rgba(255, 171, 145, 0.16);
-  --bg-glow-2: rgba(30, 42, 40, 0.9);
+  --shadow: 4px 6px 0 rgba(255, 255, 255, 0.12), 6px 12px 24px rgba(0, 0, 0, 0.5);
+  --shadow-sm: 3px 4px 0 rgba(255, 255, 255, 0.12), 3px 8px 16px rgba(0, 0, 0, 0.45);
+  --shadow-ghost: 0 3px 0 rgba(255, 255, 255, 0.3);
+  --shadow-ghost-active: 0 1px 0 rgba(255, 255, 255, 0.3);
+  --overlay-tint: rgba(0, 0, 0, 0.75);
+  --scrollbar-thumb: rgba(255, 255, 255, 0.25);
+  --bg-glow-1: rgba(255, 171, 145, 0.08);
+  --bg-glow-2: rgba(255, 255, 255, 0.04);
 }
 
 * {
