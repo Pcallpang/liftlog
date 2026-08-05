@@ -10,6 +10,44 @@
 
   const TABS = ["chat", "log", "timer", "settings"];
 
+  // ---------- add to home screen ----------
+
+  // Only Chromium-based browsers fire this; captured as early as possible
+  // (not inside DOMContentLoaded) since it can fire before that.
+  let deferredInstallPrompt = null;
+  const isStandalone =
+    window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    document.getElementById("install-app-btn").classList.remove("hidden");
+  });
+
+  window.addEventListener("appinstalled", () => {
+    deferredInstallPrompt = null;
+    document.getElementById("install-app-btn").classList.add("hidden");
+  });
+
+  async function handleInstallClick() {
+    if (deferredInstallPrompt) {
+      deferredInstallPrompt.prompt();
+      await deferredInstallPrompt.userChoice;
+      deferredInstallPrompt = null;
+      document.getElementById("install-app-btn").classList.add("hidden");
+      return;
+    }
+    if (isIOS) {
+      alert(
+        "iOS는 브라우저가 직접 설치 창을 띄워주지 않아요.\n\n" +
+          "Safari 하단(또는 상단)의 공유 버튼을 누른 뒤 '홈 화면에 추가'를 선택해주세요."
+      );
+      return;
+    }
+    alert("이 브라우저에서는 홈 화면 추가가 지원되지 않아요. Chrome이나 Safari로 열어주세요.");
+  }
+
   // ---------- mascot ----------
 
   const MASCOTS = {
@@ -890,6 +928,14 @@
     if (navigator.storage && navigator.storage.persist) {
       navigator.storage.persist().catch(() => {});
     }
+
+    // iOS never fires beforeinstallprompt, so surface the button proactively
+    // there (it just shows instructions on click); other browsers only get
+    // it once beforeinstallprompt actually fires.
+    if (!isStandalone && isIOS) {
+      document.getElementById("install-app-btn").classList.remove("hidden");
+    }
+    document.getElementById("install-app-btn").addEventListener("click", handleInstallClick);
 
     document.querySelectorAll(".bottom-nav-btn[data-tab-target]").forEach((btn) => {
       btn.addEventListener("click", () => setActiveTab(btn.dataset.tabTarget));
