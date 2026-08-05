@@ -1,4 +1,4 @@
-const CACHE_NAME = "liftlog-shell-v19";
+const CACHE_NAME = "liftlog-shell-v20";
 const SHELL_FILES = [
   "/",
   "/style.css",
@@ -6,6 +6,8 @@ const SHELL_FILES = [
   "/marked.min.js",
   "/manifest.json",
   "/icon.svg",
+  "/icon-192.png",
+  "/icon-512.png",
 ];
 
 self.addEventListener("install", (event) => {

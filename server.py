@@ -98,6 +98,8 @@ def static_files(filename):
         "manifest.json",
         "sw.js",
         "icon.svg",
+        "icon-192.png",
+        "icon-512.png",
     ):
         return send_from_directory(BASE_DIR, filename)
     return "Not Found", 404
