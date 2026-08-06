@@ -4,6 +4,12 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>미요의 운동 추천</title>
+<meta name="description" content="키·체중·3대 중량만 입력하면 AI 트레이너가 지난 기록을 보고 오늘 할 운동을 무게까지 짜주는 운동 기록 앱. 기록·타이머는 무료, 설치 없이 홈 화면에 추가해서 씁니다." />
+<meta property="og:type" content="website" />
+<meta property="og:title" content="미요의 운동 추천" />
+<meta property="og:description" content="AI 트레이너가 지난 운동 기록을 보고 오늘 할 운동을 무게까지 짜주는 운동 기록 앱" />
+<meta property="og:image" content="/icon-512.png" />
+<meta property="og:locale" content="ko_KR" />
 <link rel="manifest" href="manifest.json" />
 <!-- The app has its own manual light/dark toggle (not tied to the OS
      setting). "only light" is the strong opt-out form that keeps mobile
@@ -61,6 +67,7 @@
         백업 파일이 있으신가요?
         <button type="button" id="onboarding-import-btn" class="link-btn">가져오기</button>
       </p>
+      <p class="import-hint"><a href="/privacy.html" target="_blank" rel="noopener noreferrer">개인정보처리방침</a></p>
     </div>
   </section>
 
@@ -81,6 +88,7 @@
           target="_blank"
           rel="noopener noreferrer"
         >미요툰 보러가기</a>
+        <a class="btn btn-ghost btn-small" href="/privacy.html" target="_blank" rel="noopener noreferrer">개인정보처리방침</a>
         <div class="mode-toggle theme-toggle" id="theme-toggle">
           <button type="button" class="mode-toggle-btn" data-theme-choice="light">☀️ 라이트</button>
           <button type="button" class="mode-toggle-btn" data-theme-choice="dark">🌙 다크</button>
