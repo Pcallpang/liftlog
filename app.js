@@ -286,6 +286,54 @@
     URL.revokeObjectURL(url);
   }
 
+  // A backup file is arbitrary JSON from outside the app (possibly not even
+  // from this app), but its fields end up unescaped in innerHTML (history
+  // badges/meta) or run through the markdown renderer (chat). Coerce every
+  // field to the exact shape the rest of the app produces itself, and drop
+  // anything that doesn't fit, instead of trusting the file's shape.
+  function sanitizeHistoryEntry(entry) {
+    if (!entry || typeof entry !== "object") return null;
+    const id = Number(entry.id);
+    const date = typeof entry.date === "string" ? entry.date : null;
+    const exercise = typeof entry.exercise === "string" ? entry.exercise.trim() : "";
+    if (!Number.isFinite(id) || !date || !exercise) return null;
+
+    const type = entry.type === "distance_time" || entry.type === "reps_or_duration" ? entry.type : "strength";
+
+    if (type === "distance_time") {
+      const distanceKm = Number(entry.distanceKm);
+      const durationMinutes = Number(entry.durationMinutes);
+      if (!Number.isFinite(distanceKm) || !Number.isFinite(durationMinutes)) return null;
+      return { id, date, exercise, type, distanceKm, durationMinutes };
+    }
+
+    if (type === "reps_or_duration" && entry.mode === "duration") {
+      const durationMinutes = Number(entry.durationMinutes);
+      if (!Number.isFinite(durationMinutes)) return null;
+      return { id, date, exercise, type, mode: "duration", durationMinutes };
+    }
+
+    if (!Array.isArray(entry.sets) || entry.sets.length === 0) return null;
+    const sets = entry.sets.map(Number);
+    const targetReps = Number(entry.targetReps);
+    if (sets.some((n) => !Number.isFinite(n)) || !Number.isFinite(targetReps)) return null;
+
+    if (type === "strength") {
+      const weight = Number(entry.weight);
+      if (!Number.isFinite(weight)) return null;
+      return { id, date, exercise, type, weight, targetReps, sets };
+    }
+    return { id, date, exercise, type, mode: "reps", targetReps, sets };
+  }
+
+  function sanitizeChatMessage(msg) {
+    if (!msg || typeof msg !== "object") return null;
+    if (msg.role !== "user" && msg.role !== "assistant") return null;
+    if (typeof msg.content !== "string") return null;
+    const timestamp = Number(msg.timestamp);
+    return { role: msg.role, content: msg.content, timestamp: Number.isFinite(timestamp) ? timestamp : Date.now() };
+  }
+
   function importDataFromFile(file) {
     const reader = new FileReader();
     reader.onload = () => {
@@ -302,8 +350,12 @@
       }
 
       if (data.profile) saveProfile(data.profile);
-      if (Array.isArray(data.history)) saveHistory(data.history);
-      if (Array.isArray(data.chat)) saveChat(data.chat);
+      if (Array.isArray(data.history)) {
+        saveHistory(data.history.map(sanitizeHistoryEntry).filter(Boolean));
+      }
+      if (Array.isArray(data.chat)) {
+        saveChat(data.chat.map(sanitizeChatMessage).filter(Boolean));
+      }
       if (data.dayTitles) saveDayTitles(data.dayTitles);
       if (data.customExercises) saveCustomExercises(data.customExercises);
       if (data.apiSettings && data.apiSettings.apiKey) saveApiSettings(data.apiSettings);
@@ -349,26 +401,31 @@
   function buildDetailCardBody(entry) {
     const type = entry.type || "strength";
 
+    // These fields are numbers whenever an entry is created through the
+    // form (parseFloat/parseInt), but a restored backup file could contain
+    // anything - escape before they land in innerHTML below.
+    const esc = (v) => escapeHtml(String(v));
+
     if (type === "distance_time") {
-      return { badge: `${entry.distanceKm}km`, meta: `시간 ${entry.durationMinutes}분`, setsHtml: "" };
+      return { badge: `${esc(entry.distanceKm)}km`, meta: `시간 ${esc(entry.durationMinutes)}분`, setsHtml: "" };
     }
 
     if (type === "reps_or_duration" && entry.mode === "duration") {
-      return { badge: `${entry.durationMinutes}분`, meta: "운동 시간 기록", setsHtml: "" };
+      return { badge: `${esc(entry.durationMinutes)}분`, meta: "운동 시간 기록", setsHtml: "" };
     }
 
     const success = isEntrySuccess(entry);
     const setsHtml = entry.sets
       .map((reps, i) => {
         const failClass = reps >= entry.targetReps ? "" : "detail-set-chip-fail";
-        return `<span class="detail-set-chip ${failClass}">세트 ${i + 1}: ${reps}회</span>`;
+        return `<span class="detail-set-chip ${failClass}">세트 ${i + 1}: ${esc(reps)}회</span>`;
       })
       .join("");
     const failSuffix = success ? "" : " · 목표 미달";
-    const badge = type === "strength" ? `${entry.weight}kg` : `${entry.targetReps}회 목표`;
+    const badge = type === "strength" ? `${esc(entry.weight)}kg` : `${esc(entry.targetReps)}회 목표`;
     const meta =
       type === "strength"
-        ? `목표 ${entry.targetReps}회 · ${entry.sets.length}세트${failSuffix}`
+        ? `목표 ${esc(entry.targetReps)}회 · ${entry.sets.length}세트${failSuffix}`
         : `${entry.sets.length}세트${failSuffix}`;
     return { badge, meta, setsHtml };
   }
@@ -428,15 +485,27 @@
     return html;
   }
 
+  // marked.js passes literal HTML in its source straight through - by
+  // design, it doesn't sanitize. Since assistant replies are rendered via
+  // innerHTML (for real markdown formatting) and that text can come from an
+  // AI response or, via backup import, an arbitrary JSON file, a literal
+  // <img onerror=...> in the source would otherwise execute. No markdown
+  // syntax (**, #, -, backticks, etc.) needs angle brackets, so stripping
+  // tag-shaped runs here is safe and invisible to normal formatting.
+  function stripRawHtmlTags(text) {
+    return text.replace(/<\/?[a-zA-Z!][^>]*>/g, "");
+  }
+
   function renderMarkdown(text) {
+    const safeText = stripRawHtmlTags(text);
     if (window.marked) {
       try {
-        return marked.parse(text);
+        return marked.parse(safeText);
       } catch (err) {
         // fall through to the lightweight fallback below
       }
     }
-    return fallbackMarkdown(text);
+    return fallbackMarkdown(safeText);
   }
 
   function addChatBubble(role, text) {
