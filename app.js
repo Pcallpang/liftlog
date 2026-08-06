@@ -5,6 +5,7 @@
   const HISTORY_KEY = "liftlog_history";
   const CHAT_KEY = "liftlog_chat";
   const DAY_TITLES_KEY = "liftlog_day_titles";
+  const CUSTOM_EXERCISES_KEY = "liftlog_custom_exercises";
   const API_SETTINGS_KEY = "liftlog_api_settings";
   const ACTIVE_TAB_KEY = "liftlog_active_tab";
   const THEME_KEY = "liftlog_theme";
@@ -176,7 +177,7 @@
   let currentFieldState = { type: "strength", mode: null };
 
   function findPartForExercise(exercise) {
-    return PART_ORDER.find((part) => EXERCISE_PARTS[part].includes(exercise)) || null;
+    return PART_ORDER.find((part) => getExercisesForPart(part).includes(exercise)) || null;
   }
 
   // ---------- storage ----------
@@ -217,6 +218,30 @@
     localStorage.setItem(DAY_TITLES_KEY, JSON.stringify(titles));
   }
 
+  // Exercises the user typed in via "직접 입력", kept per body part so they
+  // show up as regular chips from then on instead of needing retyping.
+  function loadCustomExercises() {
+    const raw = localStorage.getItem(CUSTOM_EXERCISES_KEY);
+    return raw ? JSON.parse(raw) : {};
+  }
+
+  function saveCustomExercises(customExercises) {
+    localStorage.setItem(CUSTOM_EXERCISES_KEY, JSON.stringify(customExercises));
+  }
+
+  function getExercisesForPart(part) {
+    const builtIn = EXERCISE_PARTS[part] || [];
+    const custom = loadCustomExercises()[part] || [];
+    return [...builtIn, ...custom.filter((ex) => !builtIn.includes(ex))];
+  }
+
+  function addCustomExercise(part, exercise) {
+    if (!part || !exercise || getExercisesForPart(part).includes(exercise)) return;
+    const customExercises = loadCustomExercises();
+    customExercises[part] = [...(customExercises[part] || []), exercise];
+    saveCustomExercises(customExercises);
+  }
+
   function loadApiSettings() {
     const raw = localStorage.getItem(API_SETTINGS_KEY);
     return raw ? JSON.parse(raw) : { provider: "claude", apiKey: "" };
@@ -234,6 +259,7 @@
       history: loadHistory(),
       chat: loadChat(),
       dayTitles: loadDayTitles(),
+      customExercises: loadCustomExercises(),
       exportedAt: new Date().toISOString(),
     };
 
@@ -279,6 +305,7 @@
       if (Array.isArray(data.history)) saveHistory(data.history);
       if (Array.isArray(data.chat)) saveChat(data.chat);
       if (data.dayTitles) saveDayTitles(data.dayTitles);
+      if (data.customExercises) saveCustomExercises(data.customExercises);
       if (data.apiSettings && data.apiSettings.apiKey) saveApiSettings(data.apiSettings);
 
       alert("백업 데이터를 불러왔어요.");
@@ -654,7 +681,7 @@
   function populateExerciseSelectForPart(part) {
     const select = document.getElementById("log-exercise");
     select.innerHTML = "";
-    (EXERCISE_PARTS[part] || []).forEach((ex) => {
+    getExercisesForPart(part).forEach((ex) => {
       const opt = document.createElement("option");
       opt.value = ex;
       opt.textContent = ex;
@@ -693,7 +720,7 @@
     const select = document.getElementById("log-exercise");
     const container = document.getElementById("log-exercise-chips");
     container.innerHTML = "";
-    const items = [...(EXERCISE_PARTS[part] || []).map((ex) => ({ value: ex, label: ex })), { value: CUSTOM_VALUE, label: "직접 입력" }];
+    const items = [...getExercisesForPart(part).map((ex) => ({ value: ex, label: ex })), { value: CUSTOM_VALUE, label: "직접 입력" }];
     items.forEach(({ value, label }) => {
       const btn = document.createElement("button");
       btn.type = "button";
@@ -1081,11 +1108,16 @@
       e.preventDefault();
       const date = document.getElementById("log-date").value;
       const title = document.getElementById("log-title").value.trim();
+      const part = document.getElementById("log-part").value;
       const exerciseSelectValue = document.getElementById("log-exercise").value;
       const exercise =
         exerciseSelectValue === CUSTOM_VALUE
           ? document.getElementById("log-exercise-custom").value.trim()
           : exerciseSelectValue;
+
+      if (exerciseSelectValue === CUSTOM_VALUE && exercise) {
+        addCustomExercise(part, exercise);
+      }
 
       const { type, mode } = currentFieldState;
       let entryFields = null;
@@ -1153,6 +1185,7 @@
         localStorage.removeItem(HISTORY_KEY);
         localStorage.removeItem(CHAT_KEY);
         localStorage.removeItem(DAY_TITLES_KEY);
+        localStorage.removeItem(CUSTOM_EXERCISES_KEY);
         document.getElementById("profile-modal").classList.add("hidden");
         showOnboardingScreen();
       }
