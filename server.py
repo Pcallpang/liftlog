@@ -71,15 +71,35 @@ def format_history(history):
             lines.append(f"- {date} {exercise} {entry.get('durationMinutes')}분")
             continue
 
-        sets = entry.get("sets", [])
-        target = entry.get("targetReps", 0)
-        success = all(r >= target for r in sets) if sets else True
+        # Each set carries its own weight and target reps. A client running a
+        # cached build from before that change sends bare rep counts instead,
+        # with one weight/target for the whole entry - read both shapes.
+        raw_sets = entry.get("sets", [])
+        sets = [
+            s
+            if isinstance(s, dict)
+            else {
+                "weight": entry.get("weight"),
+                "targetReps": entry.get("targetReps"),
+                "reps": s,
+            }
+            for s in raw_sets
+        ]
+
+        success = all(
+            (s.get("reps") or 0) >= (s.get("targetReps") or 0) for s in sets
+        ) if sets else True
         status = "성공" if success else "일부 실패"
-        sets_text = ", ".join(str(r) for r in sets)
-        weight_text = f"{entry.get('weight')}kg " if entry_type == "strength" else ""
+
+        parts = []
+        for s in sets:
+            weight_text = (
+                f"{s.get('weight')}kg " if entry_type == "strength" else ""
+            )
+            parts.append(f"{weight_text}{s.get('reps')}/{s.get('targetReps')}회")
+
         lines.append(
-            f"- {date} {exercise} {weight_text}"
-            f"{len(sets)}세트({sets_text}회) 목표{target}회 [{status}]"
+            f"- {date} {exercise} {len(sets)}세트({', '.join(parts)}) [{status}]"
         )
     return "\n".join(lines)
 

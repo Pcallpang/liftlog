@@ -191,9 +191,40 @@
     localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
   }
 
+  // A set used to be just the actual rep count, with one weight and one target
+  // reps shared by the whole entry. Sets now carry their own weight and target
+  // so a drop set or a warm-up set can be recorded as what it actually was.
+  // Entries written before that change (in localStorage, or in a backup file
+  // exported back then) are widened on read: every set inherits the old
+  // entry-level weight/targetReps, which is exactly what it meant.
+  function widenLegacyEntry(entry) {
+    if (!entry || !Array.isArray(entry.sets)) return entry;
+    if (!entry.sets.some((set) => typeof set !== "object" || set === null)) return entry;
+
+    const entryWeight = entry.weight;
+    const entryTargetReps = entry.targetReps;
+    const widened = {
+      ...entry,
+      sets: entry.sets.map((set) => {
+        if (set && typeof set === "object") return set;
+        const next = { targetReps: entryTargetReps, reps: set };
+        if (entry.type !== "reps_or_duration") next.weight = entryWeight;
+        return next;
+      }),
+    };
+    delete widened.weight;
+    delete widened.targetReps;
+    return widened;
+  }
+
   function loadHistory() {
     const raw = localStorage.getItem(HISTORY_KEY);
-    return raw ? JSON.parse(raw) : [];
+    const stored = raw ? JSON.parse(raw) : [];
+    const history = stored.map(widenLegacyEntry);
+    // widenLegacyEntry hands back the same object when there is nothing to do,
+    // so this rewrites storage once and then never again.
+    if (history.some((entry, i) => entry !== stored[i])) saveHistory(history);
+    return history;
   }
 
   function saveHistory(history) {
@@ -239,6 +270,23 @@
     if (!part || !exercise || getExercisesForPart(part).includes(exercise)) return;
     const customExercises = loadCustomExercises();
     customExercises[part] = [...(customExercises[part] || []), exercise];
+    saveCustomExercises(customExercises);
+  }
+
+  // Only user-typed exercises can be removed - the built-in list stays put.
+  function isCustomExercise(part, exercise) {
+    if ((EXERCISE_PARTS[part] || []).includes(exercise)) return false;
+    return (loadCustomExercises()[part] || []).includes(exercise);
+  }
+
+  // Past entries keep the exercise as a plain string, so they survive this
+  // untouched even though the name is gone from the pickable list.
+  function removeCustomExercise(part, exercise) {
+    const customExercises = loadCustomExercises();
+    const remaining = (customExercises[part] || []).filter((ex) => ex !== exercise);
+    if (remaining.length === (customExercises[part] || []).length) return;
+    if (remaining.length) customExercises[part] = remaining;
+    else delete customExercises[part];
     saveCustomExercises(customExercises);
   }
 
@@ -313,17 +361,31 @@
       return { id, date, exercise, type, mode: "duration", durationMinutes };
     }
 
-    if (!Array.isArray(entry.sets) || entry.sets.length === 0) return null;
-    const sets = entry.sets.map(Number);
-    const targetReps = Number(entry.targetReps);
-    if (sets.some((n) => !Number.isFinite(n)) || !Number.isFinite(targetReps)) return null;
+    // Backup files exported before per-set weights carry sets as bare rep
+    // counts; widen those first so only one shape is left to check.
+    const widened = widenLegacyEntry({ ...entry, type });
+    if (!Array.isArray(widened.sets) || widened.sets.length === 0) return null;
+
+    const needsWeight = type === "strength";
+    const sets = [];
+    for (const raw of widened.sets) {
+      if (!raw || typeof raw !== "object") return null;
+      const targetReps = Number(raw.targetReps);
+      const reps = Number(raw.reps);
+      if (!Number.isFinite(targetReps) || !Number.isFinite(reps)) return null;
+      if (!needsWeight) {
+        sets.push({ targetReps, reps });
+        continue;
+      }
+      const weight = Number(raw.weight);
+      if (!Number.isFinite(weight)) return null;
+      sets.push({ weight, targetReps, reps });
+    }
 
     if (type === "strength") {
-      const weight = Number(entry.weight);
-      if (!Number.isFinite(weight)) return null;
-      return { id, date, exercise, type, weight, targetReps, sets };
+      return { id, date, exercise, type, sets };
     }
-    return { id, date, exercise, type, mode: "reps", targetReps, sets };
+    return { id, date, exercise, type, mode: "reps", sets };
   }
 
   function sanitizeChatMessage(msg) {
@@ -395,7 +457,15 @@
 
   function isEntrySuccess(entry) {
     if (!hasRepsGoal(entry)) return null;
-    return entry.sets.every((reps) => reps >= entry.targetReps);
+    return entry.sets.every((set) => Number(set.reps) >= Number(set.targetReps));
+  }
+
+  // Sets can now disagree, so a single number turns into a range when they do.
+  function summarizeRange(values, unit) {
+    const numbers = values.map(Number);
+    const min = Math.min(...numbers);
+    const max = Math.max(...numbers);
+    return min === max ? `${min}${unit}` : `${min}~${max}${unit}`;
   }
 
   function buildDetailCardBody(entry) {
@@ -416,17 +486,22 @@
 
     const success = isEntrySuccess(entry);
     const setsHtml = entry.sets
-      .map((reps, i) => {
-        const failClass = reps >= entry.targetReps ? "" : "detail-set-chip-fail";
-        return `<span class="detail-set-chip ${failClass}">세트 ${i + 1}: ${esc(reps)}회</span>`;
+      .map((set, i) => {
+        const failClass = Number(set.reps) >= Number(set.targetReps) ? "" : "detail-set-chip-fail";
+        const weightPart = type === "strength" ? `${esc(set.weight)}kg · ` : "";
+        return `<span class="detail-set-chip ${failClass}">세트 ${i + 1}: ${weightPart}${esc(set.reps)}/${esc(set.targetReps)}회</span>`;
       })
       .join("");
     const failSuffix = success ? "" : " · 목표 미달";
-    const badge = type === "strength" ? `${esc(entry.weight)}kg` : `${esc(entry.targetReps)}회 목표`;
-    const meta =
+    const targets = entry.sets.map((set) => set.targetReps);
+    const sameTarget = targets.every((t) => Number(t) === Number(targets[0]));
+    const badge =
       type === "strength"
-        ? `목표 ${esc(entry.targetReps)}회 · ${entry.sets.length}세트${failSuffix}`
-        : `${entry.sets.length}세트${failSuffix}`;
+        ? esc(summarizeRange(entry.sets.map((set) => set.weight), "kg"))
+        : `${esc(summarizeRange(targets, "회"))} 목표`;
+    const setCountText = `${entry.sets.length}세트${failSuffix}`;
+    const meta =
+      type === "strength" && sameTarget ? `목표 ${esc(targets[0])}회 · ${setCountText}` : setCountText;
     return { badge, meta, setsHtml };
   }
 
@@ -791,9 +866,11 @@
     container.innerHTML = "";
     const items = [...getExercisesForPart(part).map((ex) => ({ value: ex, label: ex })), { value: CUSTOM_VALUE, label: "직접 입력" }];
     items.forEach(({ value, label }) => {
+      const active = select.value === value;
+
       const btn = document.createElement("button");
       btn.type = "button";
-      btn.className = "chip" + (select.value === value ? " active" : "");
+      btn.className = "chip" + (active ? " active" : "");
       btn.textContent = label;
       btn.addEventListener("click", () => {
         if (select.value === value) return;
@@ -801,6 +878,33 @@
         select.dispatchEvent(new Event("change"));
         renderExerciseChips(part);
       });
+
+      // A mistyped exercise would otherwise stay in the list forever, so the
+      // ones the user added carry their own delete button. Nesting it inside
+      // the chip button would be invalid HTML - they sit side by side and are
+      // styled as one pill instead.
+      if (value !== CUSTOM_VALUE && isCustomExercise(part, value)) {
+        const group = document.createElement("span");
+        group.className = "chip-deletable" + (active ? " active" : "");
+        group.appendChild(btn);
+
+        const deleteBtn = document.createElement("button");
+        deleteBtn.type = "button";
+        deleteBtn.className = "chip-delete-btn";
+        deleteBtn.textContent = "×";
+        deleteBtn.setAttribute("aria-label", `${label} 종목 삭제`);
+        deleteBtn.addEventListener("click", () => {
+          if (!confirm(`'${label}'을(를) 종목 목록에서 삭제할까요?\n이미 저장된 운동 기록은 그대로 남아요.`)) return;
+          removeCustomExercise(part, value);
+          // Repopulating resets the select to its first option, which is what
+          // we want whenever the deleted exercise was the selected one.
+          populateExerciseSelectForPart(part);
+        });
+        group.appendChild(deleteBtn);
+        container.appendChild(group);
+        return;
+      }
+
       container.appendChild(btn);
     });
   }
@@ -845,6 +949,8 @@
     }
 
     currentFieldState = { type, mode: resolvedMode };
+    // Whether a set shows a weight depends on the type that was just applied.
+    renderSetRows();
     return currentFieldState;
   }
 
@@ -856,28 +962,144 @@
 
   // ---------- set rows ----------
 
-  function addSetRow() {
-    const container = document.getElementById("sets-container");
-    const row = document.createElement("div");
-    row.className = "set-row";
-    row.innerHTML = `
-      <span></span>
-      <input type="number" class="set-reps-input" min="0" step="1" placeholder="반복수" required />
-      <button type="button" class="set-remove-btn" aria-label="세트 삭제">×</button>
-    `;
-    container.appendChild(row);
-    row.querySelector(".set-remove-btn").addEventListener("click", () => {
-      row.remove();
-      renumberSets();
-    });
-    renumberSets();
+  // The sets being edited live here rather than in the DOM, because a set now
+  // holds three values that are edited in a modal instead of typed in place.
+  //
+  // weight/targetReps are either a number or null, and null means "follow the
+  // default field at the top of the form". A set only pins its own number when
+  // the modal was given something different from that default - so raising the
+  // default weight still moves every set the user did not single out, while a
+  // 50kg drop set stays at 50kg.
+  let logSets = [];
+  let editingSetIndex = null;
+
+  function readSetDefaults() {
+    return {
+      weight: parseFloat(document.getElementById("log-weight").value),
+      targetReps: parseInt(document.getElementById("log-target-reps").value, 10),
+    };
   }
 
-  function renumberSets() {
-    const rows = document.querySelectorAll("#sets-container .set-row");
-    rows.forEach((row, i) => {
-      row.querySelector("span").textContent = `세트 ${i + 1}`;
+  function resolveSet(set) {
+    const defaults = readSetDefaults();
+    return {
+      weight: set.weight === null ? defaults.weight : set.weight,
+      targetReps: set.targetReps === null ? defaults.targetReps : set.targetReps,
+      reps: set.reps,
+    };
+  }
+
+  // Actual reps are always per set, so a row that has none yet still shows the
+  // weight and target it inherited - otherwise the default fields would look
+  // like they had no effect.
+  function setSummaryText(set) {
+    const { weight, targetReps, reps } = resolveSet(set);
+    const needsWeight = currentFieldState.type === "strength";
+    if (!Number.isFinite(targetReps) || (needsWeight && !Number.isFinite(weight))) return "입력하기";
+
+    const weightPart = needsWeight ? `${weight}kg · ` : "";
+    if (!Number.isFinite(reps)) return `${weightPart}목표 ${targetReps}회 · 횟수 입력`;
+    return `${weightPart}${reps}/${targetReps}회`;
+  }
+
+  function renderSetRows() {
+    const container = document.getElementById("sets-container");
+    if (!container) return;
+    container.innerHTML = "";
+
+    logSets.forEach((set, i) => {
+      const resolved = resolveSet(set);
+      const filled = Number.isFinite(resolved.reps) && Number.isFinite(resolved.targetReps);
+
+      const row = document.createElement("div");
+      row.className = "set-row";
+
+      const label = document.createElement("span");
+      label.textContent = `세트 ${i + 1}`;
+      row.appendChild(label);
+
+      const openBtn = document.createElement("button");
+      openBtn.type = "button";
+      openBtn.className = "set-open-btn";
+      if (filled && resolved.reps < resolved.targetReps) openBtn.classList.add("set-open-btn-fail");
+      openBtn.textContent = setSummaryText(set);
+      openBtn.setAttribute("aria-label", `세트 ${i + 1} 입력`);
+      openBtn.addEventListener("click", () => openSetModal(i));
+      row.appendChild(openBtn);
+
+      const removeBtn = document.createElement("button");
+      removeBtn.type = "button";
+      removeBtn.className = "set-remove-btn";
+      removeBtn.setAttribute("aria-label", `세트 ${i + 1} 삭제`);
+      removeBtn.textContent = "×";
+      removeBtn.addEventListener("click", () => {
+        logSets.splice(i, 1);
+        renderSetRows();
+      });
+      row.appendChild(removeBtn);
+
+      container.appendChild(row);
     });
+  }
+
+  function addSet() {
+    logSets.push({ weight: null, targetReps: null, reps: null });
+    renderSetRows();
+  }
+
+  // ---------- set modal ----------
+
+  function openSetModal(index) {
+    const set = logSets[index];
+    if (!set) return;
+    editingSetIndex = index;
+
+    const showWeight = currentFieldState.type === "strength";
+    const resolved = resolveSet(set);
+
+    document.getElementById("set-modal-heading").textContent = `세트 ${index + 1}`;
+    document.getElementById("set-modal-weight-row").classList.toggle("hidden", !showWeight);
+
+    const weightInput = document.getElementById("set-modal-weight");
+    weightInput.required = showWeight;
+    weightInput.value = showWeight && Number.isFinite(resolved.weight) ? resolved.weight : "";
+
+    const targetInput = document.getElementById("set-modal-target");
+    targetInput.value = Number.isFinite(resolved.targetReps) ? resolved.targetReps : "";
+
+    const repsInput = document.getElementById("set-modal-reps");
+    repsInput.value = Number.isFinite(resolved.reps) ? resolved.reps : "";
+
+    document
+      .getElementById("set-modal-next-btn")
+      .classList.toggle("hidden", index >= logSets.length - 1);
+
+    document.getElementById("set-modal").classList.remove("hidden");
+    (showWeight ? weightInput : targetInput).focus();
+  }
+
+  function closeSetModal() {
+    editingSetIndex = null;
+    document.getElementById("set-modal").classList.add("hidden");
+  }
+
+  function commitSetModal() {
+    if (!logSets[editingSetIndex]) return;
+    const defaults = readSetDefaults();
+    const showWeight = currentFieldState.type === "strength";
+
+    const weight = parseFloat(document.getElementById("set-modal-weight").value);
+    const targetReps = parseInt(document.getElementById("set-modal-target").value, 10);
+    const reps = parseInt(document.getElementById("set-modal-reps").value, 10);
+
+    // Matching the default is stored as null, so later default edits keep
+    // flowing through to this set.
+    logSets[editingSetIndex] = {
+      weight: !showWeight || weight === defaults.weight ? null : weight,
+      targetReps: targetReps === defaults.targetReps ? null : targetReps,
+      reps: Number.isFinite(reps) ? reps : null,
+    };
+    renderSetRows();
   }
 
   function resetLogForm() {
@@ -890,10 +1112,10 @@
     document.getElementById("log-part").value = PART_ORDER[0];
     renderPartChips();
     populateExerciseSelectForPart(PART_ORDER[0]);
-    document.getElementById("sets-container").innerHTML = "";
-    addSetRow();
-    addSetRow();
-    addSetRow();
+    logSets = [];
+    addSet();
+    addSet();
+    addSet();
   }
 
   function startEditEntry(entry) {
@@ -928,7 +1150,7 @@
     const entryType = entry.type || "strength";
     applyFieldVisibility(entryType, entry.mode);
 
-    document.getElementById("sets-container").innerHTML = "";
+    logSets = [];
 
     if (entryType === "distance_time") {
       document.getElementById("log-distance-km").value = entry.distanceKm;
@@ -936,16 +1158,21 @@
     } else if (entryType === "reps_or_duration" && entry.mode === "duration") {
       document.getElementById("log-duration-minutes").value = entry.durationMinutes;
     } else {
+      // The first set seeds the default fields; sets that agree with it are
+      // stored as null so they keep tracking those defaults while editing.
+      const first = entry.sets[0] || {};
       if (entryType === "strength") {
-        document.getElementById("log-weight").value = entry.weight;
+        document.getElementById("log-weight").value = first.weight;
       }
-      document.getElementById("log-target-reps").value = entry.targetReps;
-      entry.sets.forEach(() => addSetRow());
-      const repsInputs = document.querySelectorAll("#sets-container .set-reps-input");
-      entry.sets.forEach((reps, i) => {
-        repsInputs[i].value = reps;
-      });
+      document.getElementById("log-target-reps").value = first.targetReps;
+      const defaults = readSetDefaults();
+      logSets = entry.sets.map((set) => ({
+        weight: entryType === "strength" && Number(set.weight) !== defaults.weight ? Number(set.weight) : null,
+        targetReps: Number(set.targetReps) !== defaults.targetReps ? Number(set.targetReps) : null,
+        reps: Number(set.reps),
+      }));
     }
+    renderSetRows();
 
     document.getElementById("log-form-section").scrollIntoView({ behavior: "smooth", block: "start" });
   }
@@ -1171,7 +1398,40 @@
       applyFieldVisibility("reps_or_duration", btn.dataset.mode);
     });
 
-    document.getElementById("add-set-btn").addEventListener("click", () => addSetRow());
+    document.getElementById("add-set-btn").addEventListener("click", () => addSet());
+
+    // Sets that follow the defaults have to redraw as the defaults are typed.
+    document.getElementById("log-weight").addEventListener("input", renderSetRows);
+    document.getElementById("log-target-reps").addEventListener("input", renderSetRows);
+
+    const setModal = document.getElementById("set-modal");
+    const setForm = document.getElementById("set-form");
+
+    document.getElementById("set-modal-cancel-btn").addEventListener("click", closeSetModal);
+
+    setModal.addEventListener("click", (e) => {
+      if (e.target === setModal) closeSetModal();
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && !setModal.classList.contains("hidden")) closeSetModal();
+    });
+
+    setForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      commitSetModal();
+      closeSetModal();
+    });
+
+    // Kept as a plain button with an explicit validity check: relying on
+    // submitter/requestSubmit would cut out older iOS Safari.
+    document.getElementById("set-modal-next-btn").addEventListener("click", () => {
+      if (!setForm.reportValidity()) return;
+      const nextIndex = editingSetIndex + 1;
+      commitSetModal();
+      if (nextIndex < logSets.length) openSetModal(nextIndex);
+      else closeSetModal();
+    });
 
     document.getElementById("log-form").addEventListener("submit", (e) => {
       e.preventDefault();
@@ -1207,21 +1467,25 @@
         }
         entryFields = { type, mode, durationMinutes };
       } else {
-        const targetReps = parseInt(document.getElementById("log-target-reps").value, 10);
-        const setInputs = document.querySelectorAll("#sets-container .set-reps-input");
-        const sets = Array.from(setInputs).map((input) => parseInt(input.value, 10));
+        const needsWeight = type === "strength";
+        const sets = logSets.map((set) => {
+          const { weight, targetReps, reps } = resolveSet(set);
+          return needsWeight ? { weight, targetReps, reps } : { targetReps, reps };
+        });
 
-        if (!exercise || sets.length === 0 || sets.some((n) => Number.isNaN(n)) || Number.isNaN(targetReps)) {
-          alert("운동 종목과 세트별 반복수를 모두 입력해주세요.");
+        const incomplete = sets.some(
+          (set) =>
+            !Number.isFinite(set.reps) ||
+            !Number.isFinite(set.targetReps) ||
+            (needsWeight && !Number.isFinite(set.weight))
+        );
+
+        if (!exercise || sets.length === 0 || incomplete) {
+          alert("운동 종목과 세트별 무게, 목표 횟수, 실제 횟수를 모두 입력해주세요.");
           return;
         }
 
-        if (type === "strength") {
-          const weight = parseFloat(document.getElementById("log-weight").value);
-          entryFields = { type, weight, targetReps, sets };
-        } else {
-          entryFields = { type, mode, targetReps, sets };
-        }
+        entryFields = needsWeight ? { type, sets } : { type, mode, sets };
       }
 
       const history = loadHistory();

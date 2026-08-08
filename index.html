@@ -184,15 +184,16 @@
               </div>
             </div>
             <div class="form-row" id="log-weight-row">
-              <label for="log-weight">무게 (kg)</label>
+              <label for="log-weight">기본 무게 (kg)</label>
               <input type="number" id="log-weight" min="0" step="0.5" required />
             </div>
             <div class="form-row" id="log-target-reps-row">
-              <label for="log-target-reps">목표 반복수 (세트당)</label>
+              <label for="log-target-reps">기본 목표 횟수 (세트당)</label>
               <input type="number" id="log-target-reps" min="1" step="1" required />
             </div>
             <div class="form-row" id="log-sets-row">
-              <label>세트별 실제 반복수</label>
+              <label>세트별 기록</label>
+              <p class="form-hint">세트를 눌러 무게와 횟수를 따로 바꿀 수 있어요.</p>
               <div id="sets-container" class="sets-container"></div>
               <button type="button" id="add-set-btn" class="btn btn-ghost btn-small">+ 세트 추가</button>
             </div>
@@ -241,6 +242,32 @@
       </a>
     </nav>
   </section>
+
+  <!-- 세트 입력 모달 -->
+  <div id="set-modal" class="modal-overlay hidden">
+    <div class="card modal-card">
+      <h2 id="set-modal-heading">세트</h2>
+      <form id="set-form">
+        <div class="form-row" id="set-modal-weight-row">
+          <label for="set-modal-weight">무게 (kg)</label>
+          <input type="number" id="set-modal-weight" min="0" step="0.5" />
+        </div>
+        <div class="form-row">
+          <label for="set-modal-target">목표 횟수</label>
+          <input type="number" id="set-modal-target" min="1" step="1" required />
+        </div>
+        <div class="form-row">
+          <label for="set-modal-reps">실제 횟수</label>
+          <input type="number" id="set-modal-reps" min="0" step="1" required />
+        </div>
+        <div class="form-actions">
+          <button type="button" id="set-modal-cancel-btn" class="btn btn-ghost btn-block">취소</button>
+          <button type="submit" class="btn btn-primary btn-block">저장</button>
+        </div>
+        <button type="button" id="set-modal-next-btn" class="btn btn-ghost btn-block hidden">저장 후 다음 세트 →</button>
+      </form>
+    </div>
+  </div>
 
   <!-- 프로필 수정 모달 -->
   <div id="profile-modal" class="modal-overlay hidden">

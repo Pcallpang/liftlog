@@ -242,6 +242,13 @@ h2 {
   color: var(--color-text-muted);
 }
 
+.form-hint {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  margin: -2px 0 2px;
+}
+
 input, select {
   font-family: inherit;
   font-size: 1.05rem;
@@ -406,6 +413,53 @@ select {
   background: var(--color-accent);
   border-color: var(--color-border-strong);
   color: var(--color-accent-text);
+}
+
+/* User-added exercises pair the chip with a delete button. The two buttons sit
+   side by side and are squared off where they meet, so they read as one pill. */
+.chip-deletable {
+  display: inline-flex;
+  align-items: stretch;
+}
+
+.chip-deletable .chip {
+  border-radius: 999px 0 0 999px;
+  border-right-width: 1px;
+}
+
+.chip-deletable .chip:hover {
+  transform: none;
+}
+
+.chip-delete-btn {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1;
+  padding: 9px 12px 9px 8px;
+  border: 2px solid var(--color-border-strong);
+  border-left-width: 1px;
+  border-radius: 0 999px 999px 0;
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.chip-delete-btn:hover {
+  background: var(--color-danger);
+  color: #fff;
+}
+
+.chip-deletable.active .chip-delete-btn {
+  background: var(--color-accent);
+  color: var(--color-accent-text);
+}
+
+.chip-deletable.active .chip-delete-btn:hover {
+  background: var(--color-danger);
+  color: #fff;
 }
 
 .btn:disabled {
@@ -867,6 +921,40 @@ body:not(.main-active) .bottom-nav {
 
 .set-row input {
   flex: 1;
+}
+
+/* A set's three values are edited in a modal, so the row itself is a button
+   showing the current summary rather than an input. */
+.set-open-btn {
+  flex: 1;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: left;
+  padding: 13px 14px;
+  min-height: 48px;
+  border: 2px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color 0.15s ease, transform 0.2s var(--bounce);
+}
+
+.set-open-btn:hover {
+  background: var(--color-yellow-dim);
+}
+
+.set-open-btn:active {
+  transform: scale(0.98);
+}
+
+.set-open-btn-fail {
+  background: var(--color-warning-bg);
+  border-color: var(--color-warning-border);
+  color: var(--color-warning-text);
 }
 
 .set-remove-btn {
