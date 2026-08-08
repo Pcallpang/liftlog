@@ -242,6 +242,26 @@ h2 {
   color: var(--color-text-muted);
 }
 
+/* Two short number fields share one line instead of taking a row each. They are
+   hidden independently (a bodyweight exercise has no weight), and whichever is
+   left keeps the line to itself. */
+.form-row-group {
+  display: flex;
+  gap: 10px;
+  max-width: 340px;
+}
+
+.form-row-group > .form-row {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Narrower fields need less padding, but the tap target stays at min-height. */
+.form-row-group input {
+  font-size: 1rem;
+  padding: 11px 12px;
+}
+
 .form-hint {
   font-size: 0.8rem;
   font-weight: 600;
