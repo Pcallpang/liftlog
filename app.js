@@ -135,19 +135,6 @@
     }
   }
 
-  // Very light keyword read of the assistant's reply - just enough to pick a
-  // fitting expression, never used for anything else. Falls back to the
-  // neutral default whenever nothing matches.
-  function pickMascotMood(replyText) {
-    const text = replyText || "";
-    if (/축하|훌륭|최고|대단|자랑/.test(text)) return "god";
-    if (/조심|무리하지|부상|천천히|쉬어/.test(text)) return "sweat";
-    if (/화이팅|힘내|가보자|해봐요/.test(text)) return "cheer";
-    if (/\?\s*$/.test(text.trim())) return "why";
-    if (/추천|이렇게|해보세요|어때요/.test(text)) return "advice";
-    return "main";
-  }
-
   const CUSTOM_VALUE = "__custom__";
 
   const EXERCISE_PARTS = {
@@ -599,7 +586,10 @@
       row.className = "chat-row";
       const avatar = document.createElement("img");
       avatar.className = "chat-avatar";
-      avatar.src = mascotSrc(pickMascotMood(text));
+      // The trainer is 더드미요 and nobody else - the other 미요 faces stay
+      // in the toasts, where they read as reactions rather than as a
+      // different character answering.
+      avatar.src = mascotSrc("main");
       avatar.alt = "";
       row.appendChild(avatar);
       row.appendChild(bubble);
