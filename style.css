@@ -1,42 +1,45 @@
 :root {
   color-scheme: only light;
 
-  --color-bg: #FFFDE7;
-  --color-bg-alt: #E0F2F1;
+  /* Palette taken from the 더드미요 mascot: the cape's lavender white as
+     the ground, the gi's ink purple for text, and the skin green for
+     anything the user is meant to press. */
+  --color-bg: #F4F2FB;
+  --color-bg-alt: #E6E4F5;
   --color-surface: #FFFFFF;
   --color-surface-raised: #FFFFFF;
-  --color-border: rgba(78, 52, 46, 0.22);
-  --color-border-strong: #4E342E;
+  --color-border: rgba(36, 28, 51, 0.22);
+  --color-border-strong: #241C33;
 
-  --color-text: #4E342E;
-  --color-text-muted: #795548;
-  --color-text-dim: #A1887F;
+  --color-text: #241C33;
+  --color-text-muted: #4A4066;
+  --color-text-dim: #7E76A0;
 
-  --color-accent: #FFAB91;
-  --color-accent-hover: #FF8A65;
-  --color-accent-dim: rgba(255, 171, 145, 0.28);
-  --color-accent-text: #4E342E;
+  --color-accent: #3F7A38;
+  --color-accent-hover: #33642D;
+  --color-accent-dim: rgba(63, 122, 56, 0.20);
+  --color-accent-text: #FFFFFF;
 
-  --color-yellow: #FFF59D;
-  --color-yellow-dim: rgba(255, 245, 157, 0.5);
+  --color-yellow: #DCD6F5;
+  --color-yellow-dim: rgba(75, 59, 122, 0.12);
 
-  --color-danger: #D84438;
+  --color-danger: #C0392B;
   --color-warning-bg: #FFF3E0;
   --color-warning-border: #FFB74D;
   --color-warning-text: #8D5A20;
 
   --radius: 24px;
   --radius-sm: 18px;
-  --shadow: 4px 6px 0 rgba(78, 52, 46, 0.10), 6px 12px 24px rgba(78, 52, 46, 0.12);
-  --shadow-sm: 3px 4px 0 rgba(78, 52, 46, 0.10), 3px 8px 16px rgba(78, 52, 46, 0.10);
-  --shadow-ghost: 0 3px 0 rgba(78, 52, 46, 0.28);
-  --shadow-ghost-active: 0 1px 0 rgba(78, 52, 46, 0.28);
-  --shadow-pop: 4px 6px 0 rgba(255, 138, 101, 0.4);
-  --overlay-tint: rgba(78, 52, 46, 0.45);
-  --scrollbar-thumb: rgba(78, 52, 46, 0.28);
-  --bg-glow-1: rgba(255, 245, 157, 0.55);
-  --bg-glow-2: rgba(224, 242, 241, 0.7);
-  --nav-bg: rgba(255, 253, 231, 0.94);
+  --shadow: 4px 6px 0 rgba(36, 28, 51, 0.10), 6px 12px 24px rgba(36, 28, 51, 0.12);
+  --shadow-sm: 3px 4px 0 rgba(36, 28, 51, 0.10), 3px 8px 16px rgba(36, 28, 51, 0.10);
+  --shadow-ghost: 0 3px 0 rgba(36, 28, 51, 0.28);
+  --shadow-ghost-active: 0 1px 0 rgba(36, 28, 51, 0.28);
+  --shadow-pop: 4px 6px 0 rgba(63, 122, 56, 0.35);
+  --overlay-tint: rgba(36, 28, 51, 0.45);
+  --scrollbar-thumb: rgba(36, 28, 51, 0.28);
+  --bg-glow-1: rgba(63, 122, 56, 0.12);
+  --bg-glow-2: rgba(191, 184, 235, 0.45);
+  --nav-bg: rgba(244, 242, 251, 0.94);
 
   --bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
 
@@ -61,13 +64,15 @@
   --color-text-muted: #CCCCCC;
   --color-text-dim: #888888;
 
-  --color-accent: #FFAB91;
-  --color-accent-hover: #FFC1AC;
-  --color-accent-dim: rgba(255, 171, 145, 0.22);
-  --color-accent-text: #000000;
+  /* The dark theme keeps its true-black ground; only the accent moves to
+     the mascot's green, lightened so it still carries on black. */
+  --color-accent: #7BC46A;
+  --color-accent-hover: #96D687;
+  --color-accent-dim: rgba(123, 196, 106, 0.20);
+  --color-accent-text: #141024;
 
-  --color-yellow: #FFF59D;
-  --color-yellow-dim: rgba(255, 245, 157, 0.18);
+  --color-yellow: #C9C1EE;
+  --color-yellow-dim: rgba(201, 193, 238, 0.16);
 
   --color-danger: #FF7A6B;
   --color-warning-bg: rgba(255, 183, 77, 0.14);
@@ -80,7 +85,7 @@
   --shadow-ghost-active: 0 1px 0 rgba(255, 255, 255, 0.3);
   --overlay-tint: rgba(0, 0, 0, 0.75);
   --scrollbar-thumb: rgba(255, 255, 255, 0.25);
-  --bg-glow-1: rgba(255, 171, 145, 0.08);
+  --bg-glow-1: rgba(123, 196, 106, 0.10);
   --bg-glow-2: rgba(255, 255, 255, 0.04);
   --nav-bg: rgba(10, 10, 10, 0.94);
 }

@@ -1,4 +1,4 @@
-const CACHE_NAME = "liftlog-shell-v33";
+const CACHE_NAME = "liftlog-shell-v34";
 const SHELL_FILES = [
   "/",
   "/style.css",
