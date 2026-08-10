@@ -1,6 +1,6 @@
 {
   "name": "더드미요의 운동 추천",
-  "short_name": "더드미요",
+  "short_name": "더드미요 PT",
   "description": "AI 기반 운동 추천 및 기록 앱",
   "start_url": "/",
   "scope": "/",
