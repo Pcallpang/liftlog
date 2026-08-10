@@ -140,9 +140,11 @@ def static_files(filename):
         "marked.min.js",
         "manifest.json",
         "sw.js",
-        "icon.svg",
+        "favicon.ico",
+        "apple-touch-icon.png",
         "icon-192.png",
         "icon-512.png",
+        "icon-512-maskable.png",
         "privacy.html",
     ):
         return send_from_directory(BASE_DIR, filename)

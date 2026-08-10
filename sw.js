@@ -1,13 +1,15 @@
-const CACHE_NAME = "liftlog-shell-v31";
+const CACHE_NAME = "liftlog-shell-v32";
 const SHELL_FILES = [
   "/",
   "/style.css",
   "/app.js",
   "/marked.min.js",
   "/manifest.json",
-  "/icon.svg",
+  "/favicon.ico",
+  "/apple-touch-icon.png",
   "/icon-192.png",
   "/icon-512.png",
+  "/icon-512-maskable.png",
 ];
 
 self.addEventListener("install", (event) => {
