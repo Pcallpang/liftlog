@@ -1,3 +1,4 @@
+import os
 import random
 import time
 import traceback
@@ -185,7 +186,13 @@ def call_claude(api_key, system_prompt, messages):
     return reply_text, None, None
 
 
-GEMINI_MAX_ATTEMPTS = 4  # 첫 시도 + 재시도 3번
+GEMINI_MAX_ATTEMPTS = 3  # 모델 하나당 첫 시도 + 재시도 2번
+# 앞의 모델이 계속 과부하면 뒤의 모델로 넘어간다. 환경변수로 교체 가능.
+GEMINI_MODELS = [
+    m.strip()
+    for m in os.environ.get("GEMINI_MODELS", "gemini-3.5-flash,gemini-2.5-flash").split(",")
+    if m.strip()
+]
 
 
 def call_gemini(api_key, system_prompt, messages):
@@ -199,23 +206,35 @@ def call_gemini(api_key, system_prompt, messages):
             else:
                 contents.append(genai_types.ModelContent(parts=[part]))
 
-        for attempt in range(GEMINI_MAX_ATTEMPTS):
-            try:
-                response = client.models.generate_content(
-                    model="gemini-3.5-flash",
-                    contents=contents,
-                    config=genai_types.GenerateContentConfig(system_instruction=system_prompt),
-                )
+        response = None
+        for model_index, model in enumerate(GEMINI_MODELS):
+            last_model = model_index == len(GEMINI_MODELS) - 1
+            for attempt in range(GEMINI_MAX_ATTEMPTS):
+                try:
+                    response = client.models.generate_content(
+                        model=model,
+                        contents=contents,
+                        config=genai_types.GenerateContentConfig(system_instruction=system_prompt),
+                    )
+                    break
+                except genai.errors.ServerError as e:
+                    # 503(과부하) 같은 일시적 오류는 지수 백오프로 재시도
+                    app.logger.warning("Gemini %s server error (attempt %d): %s", model, attempt + 1, e)
+                    if attempt == GEMINI_MAX_ATTEMPTS - 1:
+                        if last_model:
+                            return None, "Gemini 서버가 계속 혼잡해요. 잠시 후 다시 시도하거나 Claude로 바꿔서 물어봐 주세요.", 503
+                        break  # 다음 모델로
+                    time.sleep(2**attempt + random.uniform(0, 0.5))
+                except genai.errors.ClientError as e:
+                    if e.code == 404 and not last_model:
+                        # 이 모델을 쓸 수 없는 키/지역이면 다음 모델로
+                        app.logger.warning("Gemini %s unavailable: %s", model, e)
+                        break
+                    if e.code != 429 or attempt == GEMINI_MAX_ATTEMPTS - 1:
+                        raise
+                    time.sleep(2**attempt + random.uniform(0, 0.5))
+            if response is not None:
                 break
-            except genai.errors.ServerError:
-                # 503(과부하) 같은 일시적 오류는 지수 백오프로 재시도
-                if attempt == GEMINI_MAX_ATTEMPTS - 1:
-                    return None, "Gemini 서버가 지금 혼잡해요. 잠시 후 다시 시도해주세요.", 503
-                time.sleep(2**attempt + random.uniform(0, 0.5))
-            except genai.errors.ClientError as e:
-                if e.code != 429 or attempt == GEMINI_MAX_ATTEMPTS - 1:
-                    raise
-                time.sleep(2**attempt + random.uniform(0, 0.5))
     except genai.errors.ClientError as e:
         if e.code == 401 or e.code == 403:
             return None, "Gemini API 키가 유효하지 않아요. API 설정에서 키를 확인해주세요.", 401
