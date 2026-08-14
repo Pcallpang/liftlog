@@ -1,3 +1,5 @@
+import random
+import time
 import traceback
 from pathlib import Path
 
@@ -183,6 +185,9 @@ def call_claude(api_key, system_prompt, messages):
     return reply_text, None, None
 
 
+GEMINI_MAX_ATTEMPTS = 4  # 첫 시도 + 재시도 3번
+
+
 def call_gemini(api_key, system_prompt, messages):
     try:
         client = genai.Client(api_key=api_key)
@@ -194,14 +199,28 @@ def call_gemini(api_key, system_prompt, messages):
             else:
                 contents.append(genai_types.ModelContent(parts=[part]))
 
-        response = client.models.generate_content(
-            model="gemini-3.5-flash",
-            contents=contents,
-            config=genai_types.GenerateContentConfig(system_instruction=system_prompt),
-        )
+        for attempt in range(GEMINI_MAX_ATTEMPTS):
+            try:
+                response = client.models.generate_content(
+                    model="gemini-3.5-flash",
+                    contents=contents,
+                    config=genai_types.GenerateContentConfig(system_instruction=system_prompt),
+                )
+                break
+            except genai.errors.ServerError:
+                # 503(과부하) 같은 일시적 오류는 지수 백오프로 재시도
+                if attempt == GEMINI_MAX_ATTEMPTS - 1:
+                    return None, "Gemini 서버가 지금 혼잡해요. 잠시 후 다시 시도해주세요.", 503
+                time.sleep(2**attempt + random.uniform(0, 0.5))
+            except genai.errors.ClientError as e:
+                if e.code != 429 or attempt == GEMINI_MAX_ATTEMPTS - 1:
+                    raise
+                time.sleep(2**attempt + random.uniform(0, 0.5))
     except genai.errors.ClientError as e:
         if e.code == 401 or e.code == 403:
             return None, "Gemini API 키가 유효하지 않아요. API 설정에서 키를 확인해주세요.", 401
+        if e.code == 429:
+            return None, "Gemini API 사용량 한도를 초과했어요. 잠시 후 다시 시도해주세요.", 429
         return None, f"Gemini API 오류: {e.message}", 502
     except Exception as e:
         return None, f"Gemini API 호출 중 오류가 발생했어요: {e}", 502
