@@ -823,6 +823,22 @@ body:not(.main-active) .bottom-nav {
   text-align: center;
 }
 
+.timer-reset-corner {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  padding: 5px 10px;
+  min-height: 0;
+  font-size: 0.72rem;
+  border-width: 1.5px;
+  border-radius: 999px;
+  opacity: 0.8;
+}
+
+.timer-reset-corner:hover {
+  opacity: 1;
+}
+
 .timer-display {
   font-family: var(--font-display);
   font-size: 2.8rem;
