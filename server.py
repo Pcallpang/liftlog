@@ -8,6 +8,7 @@ from flask import Flask, jsonify, request, send_from_directory
 import anthropic
 from google import genai
 from google.genai import types as genai_types
+from workout_reference import format_workout_reference
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -42,6 +43,9 @@ SYSTEM_PROMPT_TEMPLATE = """당신은 친절하고 전문적인 퍼스널 트레
 
 [참고: 7월 과거 훈련 스타일 예시 - 실제 완료 여부는 불확실하지만 톤과 구성 참고용]
 {july_reference}
+
+[사용자 제공 운동 레퍼런스 — 실제 운동 기록과 구분]
+{workout_reference}
 
 [최근 운동 기록]
 {history_summary}
@@ -273,6 +277,7 @@ def chat():
             bench=one_rm.get("bench"),
             deadlift=one_rm.get("deadlift"),
             july_reference=JULY_REFERENCE,
+            workout_reference=format_workout_reference(),
             history_summary=format_history(history),
         )
 

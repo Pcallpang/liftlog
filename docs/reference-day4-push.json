@@ -1,0 +1,25 @@
+{
+  "id": "militaryfriends-day4-push",
+  "title": "DAY 4: 밀기",
+  "muscles": ["가슴", "어깨", "삼두"],
+  "source": {
+    "account": "militaryfriends_official",
+    "type": "사용자가 제공한 인스타그램 스크린샷",
+    "slide": "5/9",
+    "original_filename": "KakaoTalk_20260927_161513626_04.jpg",
+    "image": "reference-day4-push.jpg",
+    "post_url": null,
+    "imported_at": "2026-09-27"
+  },
+  "weight_kg": null,
+  "rest_seconds": null,
+  "exercises": [
+    {"name": "인클라인 벤치 프레스", "part": "가슴", "equipment": "바벨·인클라인 벤치", "sets": 4, "reps_min": 8, "reps_max": 10},
+    {"name": "체스트 프레스 머신", "part": "가슴", "equipment": "체스트 프레스 머신", "sets": 3, "reps_min": 8, "reps_max": 10},
+    {"name": "아놀드 프레스", "part": "어깨", "equipment": "덤벨", "sets": 3, "reps_min": 8, "reps_max": 10},
+    {"name": "케이블 레터럴 레이즈", "part": "어깨", "equipment": "케이블 머신", "sets": 3, "reps_min": 12, "reps_max": 15},
+    {"name": "펙 덱 플라이", "part": "가슴", "equipment": "펙 덱 머신", "sets": 3, "reps_min": 12, "reps_max": 15},
+    {"name": "클로즈 그립 벤치프레스", "part": "팔", "equipment": "바벨·벤치", "sets": 3, "reps_min": 8, "reps_max": 10},
+    {"name": "로프 트라이셉스 푸쉬 다운", "part": "팔", "equipment": "케이블 머신·로프", "sets": 3, "reps_min": 10, "reps_max": 12}
+  ]
+}
