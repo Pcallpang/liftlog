@@ -40,12 +40,16 @@ SYSTEM_PROMPT_TEMPLATE = """당신은 친절하고 전문적인 퍼스널 트레
 6. 필요하면 웜업 세트, 슈퍼세트, 드롭세트, 유산소 마무리 운동도 자연스럽게 포함할 수 있음.
 7. 사용자가 컨디션(부상, 시간 부족 등)을 이야기하면 그에 맞게 유연하게 조정.
 8. [최근 운동 기록]은 앱에 정식으로 저장된 기록이고, 그 외에 이 대화(위쪽 대화 내용)에서 사용자가 언급한 운동(예: "오늘 수영했어", "등산 다녀왔어" 같은 기록되지 않은 활동)도 반드시 함께 고려하세요. 대화에서 언급된 활동이 있다면 그 부위/피로도를 감안해서 오늘 추천을 조정하고, 필요하면 "지난번에 말씀하신 수영 때문에 오늘은 하체보다는 ~"처럼 근거를 짚어주세요.
+9. [사용 가능한 운동 종목]은 이 사용자의 앱에 등록된, 실제로 할 수 있는 종목 목록입니다. 추천은 이 목록 위주로 하고, 같은 부위를 또 추천할 때도 최근 기록에서 자주 쓴 종목만 반복하지 말고 같은 부위 안의 다른 종목(다른 머신·각도·그립)으로 로테이션해서 매번 루틴이 다양해지도록 하세요. 목록에 없는 아주 일반적인 보조 운동(맨몸 스트레칭 등)은 필요하면 곁들여도 되지만, 메인 종목은 목록에서 고르세요.
 
 [참고: 7월 과거 훈련 스타일 예시 - 실제 완료 여부는 불확실하지만 톤과 구성 참고용]
 {july_reference}
 
 [사용자 제공 운동 레퍼런스 — 실제 운동 기록과 구분]
 {workout_reference}
+
+[사용 가능한 운동 종목]
+{available_exercises}
 
 [최근 운동 기록]
 {history_summary}
@@ -109,6 +113,16 @@ def format_history(history):
             f"- {date} {exercise} {len(sets)}세트({', '.join(parts)}) [{status}]"
         )
     return "\n".join(lines)
+
+
+def format_available_exercises(available):
+    if not available:
+        return "등록된 종목 목록이 없습니다 (일반적인 종목으로 추천하세요)."
+    lines = []
+    for part, exercises in available.items():
+        if exercises:
+            lines.append(f"- {part}: {', '.join(exercises)}")
+    return "\n".join(lines) if lines else "등록된 종목 목록이 없습니다 (일반적인 종목으로 추천하세요)."
 
 
 @app.after_request
@@ -260,6 +274,7 @@ def chat():
         data = request.get_json(force=True, silent=True) or {}
         profile = data.get("profile") or {}
         history = data.get("history") or []
+        available_exercises = data.get("availableExercises") or {}
         messages = data.get("messages") or []
         provider = data.get("provider") or "claude"
         client_api_key = (data.get("apiKey") or "").strip()
@@ -278,6 +293,7 @@ def chat():
             deadlift=one_rm.get("deadlift"),
             july_reference=JULY_REFERENCE,
             workout_reference=format_workout_reference(),
+            available_exercises=format_available_exercises(available_exercises),
             history_summary=format_history(history),
         )
 

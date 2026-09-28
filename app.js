@@ -140,8 +140,8 @@
   const CUSTOM_VALUE = "__custom__";
 
   const EXERCISE_PARTS = {
-    "가슴": ["벤치프레스", "인클라인 프레스", "인클라인 벤치 프레스", "체스트 프레스 머신", "펙 덱 플라이", "케이블 크로스오버", "딥스"],
-    "등": ["데드리프트", "바벨로우", "랫풀다운", "시티드 케이블 로우", "원 암 덤벨 로우"],
+    "가슴": ["벤치프레스", "인클라인 프레스", "인클라인 벤치 프레스", "인클라인 프레스 머신", "인클라인 체스트 프레스 머신", "체스트 프레스 머신", "펙 덱 플라이", "케이블 크로스오버", "로우 투 하이 케이블 머신", "딥스"],
+    "등": ["데드리프트", "바벨로우", "랫풀다운", "암 풀 다운", "시티드 케이블 로우", "하이로우 언더그립 머신", "원 암 덤벨 로우", "원 암 로우 머신", "D.Y 로우 머신", "풀업"],
     "하체": ["스쿼트", "핵스쿼트", "레그프레스", "워킹 런지", "레그컬", "레그익스텐션"],
     "어깨": ["오버헤드프레스", "덤벨 숄더 프레스", "아놀드 프레스", "사이드 레터럴 레이즈", "케이블 레터럴 레이즈", "프론트 레이즈", "페이스풀", "리어 델트 플라이"],
     "팔": ["바벨 컬", "덤벨 해머 컬", "케이블 트라이셉스 푸쉬다운", "로프 트라이셉스 푸쉬 다운", "클로즈 그립 벤치프레스", "덤벨 라잉 트라이셉스 익스텐션"],
@@ -155,11 +155,15 @@
     "인클라인 런닝머신": { type: "reps_or_duration", defaultMode: "duration" },
     "스텝밀": { type: "reps_or_duration", defaultMode: "duration" },
     "러닝": { type: "distance_time" },
+    // 맨몸 운동이라 무게 없이 횟수만 기록한다 - 유산소 부위 밖에서도 적용되도록
+    // getExerciseType이 부위와 상관없이 이 오버라이드를 먼저 확인한다.
+    "풀업": { type: "reps_or_duration", defaultMode: "reps" },
   };
 
   function getExerciseType(part, exerciseName) {
+    if (EXERCISE_TYPE_OVERRIDES[exerciseName]) return EXERCISE_TYPE_OVERRIDES[exerciseName];
     if (part !== CARDIO_PART) return { type: "strength" };
-    return EXERCISE_TYPE_OVERRIDES[exerciseName] || { type: "reps_or_duration", defaultMode: "reps" };
+    return { type: "reps_or_duration", defaultMode: "reps" };
   }
 
   let editingEntryId = null;
@@ -253,6 +257,16 @@
     const builtIn = EXERCISE_PARTS[part] || [];
     const custom = loadCustomExercises()[part] || [];
     return [...builtIn, ...custom.filter((ex) => !builtIn.includes(ex))];
+  }
+
+  // What the trainer AI is told is available, so it recommends specific
+  // machines/exercises from this gym instead of generic textbook picks.
+  function collectAvailableExercises() {
+    const byPart = {};
+    PART_ORDER.forEach((part) => {
+      byPart[part] = getExercisesForPart(part);
+    });
+    return byPart;
   }
 
   function addCustomExercise(part, exercise) {
@@ -648,6 +662,7 @@
         body: JSON.stringify({
           profile: loadProfile(),
           history: loadHistory(),
+          availableExercises: collectAvailableExercises(),
           messages: trimMessagesForApi(chat),
           provider: apiSettings.provider,
           apiKey: apiSettings.apiKey,
@@ -1085,6 +1100,8 @@
             { weight: null, targetReps: null, reps: null },
             { weight: null, targetReps: null, reps: null },
             { weight: null, targetReps: null, reps: null },
+            { weight: null, targetReps: null, reps: null },
+            { weight: null, targetReps: null, reps: null },
           ];
     renderSetRows();
 
@@ -1104,7 +1121,9 @@
       row.className = "set-row";
 
       const label = document.createElement("span");
-      label.textContent = `세트 ${i + 1}`;
+      // The 5th set is a drop set by convention - just a naming nudge to
+      // remember to drop the weight, not a different data shape.
+      label.textContent = i === 4 ? `세트 ${i + 1} · 드롭세트` : `세트 ${i + 1}`;
       row.appendChild(label);
 
       const openBtn = document.createElement("button");
@@ -1148,7 +1167,7 @@
     const showWeight = currentFieldState.type === "strength";
     const resolved = resolveSet(set);
 
-    document.getElementById("set-modal-heading").textContent = `세트 ${index + 1}`;
+    document.getElementById("set-modal-heading").textContent = index === 4 ? `세트 ${index + 1} · 드롭세트` : `세트 ${index + 1}`;
     document.getElementById("set-modal-weight-row").classList.toggle("hidden", !showWeight);
 
     const weightInput = document.getElementById("set-modal-weight");
@@ -1205,6 +1224,8 @@
     renderPartChips();
     populateExerciseSelectForPart(PART_ORDER[0]);
     logSets = [];
+    addSet();
+    addSet();
     addSet();
     addSet();
     addSet();
