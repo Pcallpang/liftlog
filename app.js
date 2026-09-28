@@ -9,6 +9,8 @@
   const API_SETTINGS_KEY = "liftlog_api_settings";
   const ACTIVE_TAB_KEY = "liftlog_active_tab";
   const THEME_KEY = "liftlog_theme";
+  const LOG_DRAFT_KEY = "liftlog_log_draft";
+  const TIMER_STATE_KEY = "liftlog_timer_state";
 
   const TABS = ["chat", "log", "timer", "settings"];
 
@@ -992,6 +994,103 @@
     return `${weightPart}${reps}/${targetReps}회`;
   }
 
+  // ---------- log form draft (survives an accidental app close) ----------
+
+  function loadLogDraft() {
+    try {
+      const raw = localStorage.getItem(LOG_DRAFT_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function clearLogDraft() {
+    localStorage.removeItem(LOG_DRAFT_KEY);
+  }
+
+  // A freshly reset form (nothing typed, default empty sets) looks the same
+  // as "no draft" - saving it would just restore a blank form every launch.
+  function isDraftMeaningful(draft) {
+    if (draft.editingEntryId) return true;
+    if (draft.exerciseCustomText) return true;
+    if (draft.distanceKm || draft.durationMinutes) return true;
+    if (draft.weight || draft.targetReps) return true;
+    return draft.logSets.some((set) => set.weight !== null || set.targetReps !== null || set.reps !== null);
+  }
+
+  function captureLogDraft() {
+    return {
+      editingEntryId,
+      date: document.getElementById("log-date").value,
+      title: document.getElementById("log-title").value,
+      part: document.getElementById("log-part").value,
+      exerciseValue: document.getElementById("log-exercise").value,
+      exerciseCustomText: document.getElementById("log-exercise-custom").value,
+      type: currentFieldState.type,
+      mode: currentFieldState.mode,
+      weight: document.getElementById("log-weight").value,
+      targetReps: document.getElementById("log-target-reps").value,
+      distanceKm: document.getElementById("log-distance-km").value,
+      durationMinutes: document.getElementById("log-duration-minutes").value,
+      logSets,
+    };
+  }
+
+  function saveLogDraft() {
+    const draft = captureLogDraft();
+    try {
+      if (isDraftMeaningful(draft)) localStorage.setItem(LOG_DRAFT_KEY, JSON.stringify(draft));
+      else localStorage.removeItem(LOG_DRAFT_KEY);
+    } catch {
+      /* storage full - the draft just won't survive a kill this time */
+    }
+  }
+
+  // Rebuilds the log form from a saved draft, the same way startEditEntry
+  // rebuilds it from a finished history entry.
+  function restoreLogDraft(draft) {
+    editingEntryId = draft.editingEntryId || null;
+    document.getElementById("log-form-heading").textContent = editingEntryId ? "운동 기록 수정하기" : "운동 기록하기";
+    document.getElementById("log-form-placeholder").classList.add("hidden");
+    document.getElementById("log-form-section").classList.remove("hidden");
+
+    document.getElementById("log-date").value = draft.date || todayString();
+    document.getElementById("log-title").value = draft.title || "";
+
+    const part = draft.part || PART_ORDER[0];
+    document.getElementById("log-part").value = part;
+    renderPartChips();
+    populateExerciseSelectForPart(part);
+
+    const exerciseSelect = document.getElementById("log-exercise");
+    const hasOption = [...exerciseSelect.options].some((o) => o.value === draft.exerciseValue);
+    if (draft.exerciseValue && hasOption) exerciseSelect.value = draft.exerciseValue;
+    const isCustom = exerciseSelect.value === CUSTOM_VALUE;
+    toggleCustomExerciseInput(isCustom);
+    if (isCustom) document.getElementById("log-exercise-custom").value = draft.exerciseCustomText || "";
+    renderExerciseChips(part);
+
+    applyFieldVisibility(draft.type || "strength", draft.mode);
+
+    document.getElementById("log-distance-km").value = draft.distanceKm || "";
+    document.getElementById("log-duration-minutes").value = draft.durationMinutes || "";
+    document.getElementById("log-weight").value = draft.weight || "";
+    document.getElementById("log-target-reps").value = draft.targetReps || "";
+
+    logSets =
+      Array.isArray(draft.logSets) && draft.logSets.length
+        ? draft.logSets
+        : [
+            { weight: null, targetReps: null, reps: null },
+            { weight: null, targetReps: null, reps: null },
+            { weight: null, targetReps: null, reps: null },
+          ];
+    renderSetRows();
+
+    setActiveTab("log");
+  }
+
   function renderSetRows() {
     const container = document.getElementById("sets-container");
     if (!container) return;
@@ -1025,6 +1124,7 @@
       removeBtn.addEventListener("click", () => {
         logSets.splice(i, 1);
         renderSetRows();
+        saveLogDraft();
       });
       row.appendChild(removeBtn);
 
@@ -1035,6 +1135,7 @@
   function addSet() {
     logSets.push({ weight: null, targetReps: null, reps: null });
     renderSetRows();
+    saveLogDraft();
   }
 
   // ---------- set modal ----------
@@ -1090,6 +1191,7 @@
       reps: Number.isFinite(reps) ? reps : null,
     };
     renderSetRows();
+    saveLogDraft();
   }
 
   function resetLogForm() {
@@ -1163,6 +1265,7 @@
       }));
     }
     renderSetRows();
+    saveLogDraft();
 
     document.getElementById("log-form-section").scrollIntoView({ behavior: "smooth", block: "start" });
   }
@@ -1180,6 +1283,65 @@
 
   let restRunning = false;
   let restStartedAt = 0;
+  let laps = [];
+
+  // Persisted on every start/pause/lap/reset so two-back-button-presses
+  // killing the app mid-workout doesn't wipe the timer. timerStartedAt and
+  // restStartedAt are real clock timestamps, so restoring them naturally
+  // keeps counting the true elapsed time through the time the app was closed.
+  function loadTimerState() {
+    try {
+      const raw = localStorage.getItem(TIMER_STATE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function saveTimerState() {
+    try {
+      localStorage.setItem(
+        TIMER_STATE_KEY,
+        JSON.stringify({ timerRunning, timerStartedAt, timerElapsedMs, restRunning, restStartedAt, timerLapCount, laps })
+      );
+    } catch {
+      /* storage full - the timer just won't survive a kill this time */
+    }
+  }
+
+  function clearTimerState() {
+    localStorage.removeItem(TIMER_STATE_KEY);
+  }
+
+  function renderLaps() {
+    const list = document.getElementById("timer-laps");
+    list.innerHTML = "";
+    laps.forEach((lap) => {
+      const li = document.createElement("li");
+      li.className = "timer-lap-item";
+      li.innerHTML = `<span>${lap.label}</span><span>${formatDuration(lap.ms)}</span>`;
+      list.prepend(li);
+    });
+  }
+
+  function restoreTimerState() {
+    const saved = loadTimerState();
+    if (!saved) return;
+    timerRunning = !!saved.timerRunning;
+    timerStartedAt = saved.timerStartedAt || 0;
+    timerElapsedMs = saved.timerElapsedMs || 0;
+    restRunning = !!saved.restRunning;
+    restStartedAt = saved.restStartedAt || 0;
+    timerLapCount = saved.timerLapCount || 0;
+    laps = Array.isArray(saved.laps) ? saved.laps : [];
+
+    renderLaps();
+    const everStarted = timerRunning || timerElapsedMs > 0;
+    document.getElementById("timer-start-btn").textContent = timerRunning ? "일시정지" : everStarted ? "재개" : "시작";
+    document.getElementById("timer-lap-btn").disabled = !everStarted;
+    document.getElementById("timer-lap-btn").textContent = restRunning ? "쉬는 시간 기록" : "쉬는 시간 시작";
+    if (timerRunning || restRunning) ensureTicking();
+  }
 
   function timerCurrentElapsedMs() {
     return timerElapsedMs + (timerRunning ? Date.now() - timerStartedAt : 0);
@@ -1226,6 +1388,7 @@
       maybeStopTicking();
       startBtn.textContent = "재개";
     }
+    saveTimerState();
   }
 
   function toggleRestTimer() {
@@ -1236,19 +1399,19 @@
       ensureTicking();
       lapBtn.textContent = "쉬는 시간 기록";
     } else {
+      // Log the split and immediately restart from 0 - re-pressing "시작"
+      // every set was annoying, so this button now always means "record and
+      // keep resting". The only way to stop resting entirely is resetTimer
+      // (leaving the timer tab / ending the workout).
       const split = restCurrentElapsedMs();
-      restRunning = false;
+      restStartedAt = Date.now();
       timerLapCount += 1;
+      laps.push({ label: `쉬는 시간 ${timerLapCount}`, ms: split });
+      renderLaps();
 
-      const li = document.createElement("li");
-      li.className = "timer-lap-item";
-      li.innerHTML = `<span>쉬는 시간 ${timerLapCount}</span><span>${formatDuration(split)}</span>`;
-      document.getElementById("timer-laps").prepend(li);
-
-      lapBtn.textContent = "쉬는 시간 시작";
-      maybeStopTicking();
       updateTimerDisplay(); // instant refresh so the rest display visibly resets to 00:00
     }
+    saveTimerState();
   }
 
   function resetTimer() {
@@ -1260,10 +1423,12 @@
     }
     timerElapsedMs = 0;
     timerLapCount = 0;
+    laps = [];
     document.getElementById("timer-start-btn").textContent = "시작";
     document.getElementById("timer-lap-btn").textContent = "쉬는 시간 시작";
     document.getElementById("timer-lap-btn").disabled = true;
     document.getElementById("timer-laps").innerHTML = "";
+    clearTimerState();
     updateTimerDisplay();
   }
 
@@ -1271,6 +1436,7 @@
 
   document.addEventListener("DOMContentLoaded", () => {
     populatePartSelect();
+    restoreTimerState();
     updateTimerDisplay();
 
     // Best-effort: ask the browser not to evict localStorage under storage
@@ -1327,6 +1493,11 @@
     const profile = loadProfile();
     if (profile) {
       showMainScreen();
+      const draft = loadLogDraft();
+      if (draft) {
+        restoreLogDraft(draft);
+        showMascotToast("advice", "쓰던 운동 기록을 이어서 불러왔어요.");
+      }
     } else {
       showOnboardingScreen();
     }
@@ -1366,7 +1537,14 @@
       editingEntryId = null;
       document.getElementById("log-form-section").classList.add("hidden");
       document.getElementById("log-form-placeholder").classList.remove("hidden");
+      clearLogDraft();
     });
+
+    // Catches every field in the form (date/title/part/exercise/weight/reps/
+    // distance/duration) so a killed app can restore exactly what was typed,
+    // without wiring a save call into each individual field listener above.
+    document.getElementById("log-form").addEventListener("input", saveLogDraft);
+    document.getElementById("log-form").addEventListener("change", saveLogDraft);
 
     document.getElementById("log-date").addEventListener("change", (e) => {
       document.getElementById("log-title").value = loadDayTitles()[e.target.value] || "";
@@ -1386,6 +1564,7 @@
       const btn = e.target.closest(".mode-toggle-btn");
       if (!btn) return;
       applyFieldVisibility("reps_or_duration", btn.dataset.mode);
+      saveLogDraft();
     });
 
     document.getElementById("add-set-btn").addEventListener("click", () => addSet());
@@ -1498,6 +1677,7 @@
 
       document.getElementById("log-form-section").classList.add("hidden");
       document.getElementById("log-form-placeholder").classList.remove("hidden");
+      clearLogDraft();
       renderHistory();
       showSaveFeedback(entryFields);
     });
@@ -1509,6 +1689,8 @@
         localStorage.removeItem(CHAT_KEY);
         localStorage.removeItem(DAY_TITLES_KEY);
         localStorage.removeItem(CUSTOM_EXERCISES_KEY);
+        localStorage.removeItem(LOG_DRAFT_KEY);
+        localStorage.removeItem(TIMER_STATE_KEY);
         document.getElementById("profile-modal").classList.add("hidden");
         showOnboardingScreen();
       }
