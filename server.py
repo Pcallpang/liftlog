@@ -208,7 +208,7 @@ GEMINI_MAX_ATTEMPTS = 3  # 모델 하나당 첫 시도 + 재시도 2번
 # 앞의 모델이 계속 과부하면 뒤의 모델로 넘어간다. 환경변수로 교체 가능.
 GEMINI_MODELS = [
     m.strip()
-    for m in os.environ.get("GEMINI_MODELS", "gemini-3.5-flash,gemini-2.5-flash").split(",")
+    for m in os.environ.get("GEMINI_MODELS", "gemini-3.8-flash,gemini-3.6-flash,gemini-2.5-flash").split(",")
     if m.strip()
 ]
 
