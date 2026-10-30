@@ -11,6 +11,8 @@
   const THEME_KEY = "liftlog_theme";
   const LOG_DRAFT_KEY = "liftlog_log_draft";
   const TIMER_STATE_KEY = "liftlog_timer_state";
+  const ROUTINE_KEY = "liftlog_routine";
+  const CHAT_MEMO_KEY = "liftlog_chat_memo";
 
   const TABS = ["chat", "log", "timer", "settings"];
 
@@ -233,6 +235,34 @@
     localStorage.setItem(CHAT_KEY, JSON.stringify(chat));
   }
 
+  // What "대화 요약" folded the old chat into - sent with every message so the
+  // trainer still knows it after the chat itself was cleared.
+  function loadChatMemo() {
+    return localStorage.getItem(CHAT_MEMO_KEY) || "";
+  }
+
+  function saveChatMemo(text) {
+    const trimmed = (text || "").trim();
+    if (trimmed) localStorage.setItem(CHAT_MEMO_KEY, trimmed);
+    else localStorage.removeItem(CHAT_MEMO_KEY);
+  }
+
+  // The routine the user took from a trainer reply: { date, items }, where an
+  // item that has been logged carries the id of the history entry it became.
+  function loadRoutine() {
+    try {
+      const raw = localStorage.getItem(ROUTINE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function saveRoutine(routine) {
+    if (routine) localStorage.setItem(ROUTINE_KEY, JSON.stringify(routine));
+    else localStorage.removeItem(ROUTINE_KEY);
+  }
+
   function loadDayTitles() {
     const raw = localStorage.getItem(DAY_TITLES_KEY);
     return raw ? JSON.parse(raw) : {};
@@ -309,6 +339,7 @@
       profile: loadProfile(),
       history: loadHistory(),
       chat: loadChat(),
+      chatMemo: loadChatMemo(),
       dayTitles: loadDayTitles(),
       customExercises: loadCustomExercises(),
       exportedAt: new Date().toISOString(),
@@ -421,6 +452,8 @@
       if (Array.isArray(data.chat)) {
         saveChat(data.chat.map(sanitizeChatMessage).filter(Boolean));
       }
+      // Only ever shown as textarea text, so a plain string is all it needs.
+      if (typeof data.chatMemo === "string") saveChatMemo(data.chatMemo.slice(0, 2000));
       if (data.dayTitles) saveDayTitles(data.dayTitles);
       if (data.customExercises) saveCustomExercises(data.customExercises);
       if (data.apiSettings && data.apiSettings.apiKey) saveApiSettings(data.apiSettings);
@@ -586,13 +619,70 @@
     return fallbackMarkdown(safeText);
   }
 
+  // The trainer appends a ```routine JSON block to a reply that proposes a
+  // workout (server.py rule 10). It is kept in the stored chat - the trainer
+  // reads its own earlier routines back from there - but never shown: the
+  // bubble gets a "take this routine" button instead. A reply cut off mid-
+  // block still has the half block stripped, it just offers no button.
+  const ROUTINE_BLOCK_RE = /```routine\s*([\s\S]*?)(```|$)/;
+
+  function sanitizeRoutineItem(raw) {
+    if (!raw || typeof raw !== "object") return null;
+    const exercise = typeof raw.exercise === "string" ? raw.exercise.trim().slice(0, 40) : "";
+    if (!exercise) return null;
+    const part = PART_ORDER.includes(raw.part) ? raw.part : findPartForExercise(exercise);
+    const num = (v, min, max) => {
+      const n = Number(v);
+      return v !== null && v !== undefined && v !== "" && Number.isFinite(n) && n >= min && n <= max ? n : null;
+    };
+    const intOrNull = (v, min, max) => {
+      const n = num(v, min, max);
+      return n === null ? null : Math.round(n);
+    };
+    return {
+      part,
+      exercise,
+      weight: num(raw.weight, 0, 1000),
+      sets: intOrNull(raw.sets, 1, 20),
+      reps: intOrNull(raw.reps, 1, 200),
+      minutes: num(raw.minutes, 1, 600),
+      entryId: null,
+    };
+  }
+
+  function extractRoutine(text) {
+    const match = text.match(ROUTINE_BLOCK_RE);
+    if (!match) return { displayText: text, items: [] };
+    const displayText = text.replace(ROUTINE_BLOCK_RE, "").trimEnd();
+    let items = [];
+    try {
+      const parsed = JSON.parse(match[1]);
+      if (Array.isArray(parsed)) items = parsed.map(sanitizeRoutineItem).filter(Boolean);
+    } catch {
+      /* malformed or cut-off block - show the reply without a button */
+    }
+    return { displayText, items };
+  }
+
+  function fillAssistantBubble(bubble, text) {
+    const { displayText, items } = extractRoutine(text);
+    bubble.innerHTML = renderMarkdown(displayText);
+    if (items.length === 0) return;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn btn-primary btn-small routine-take-btn";
+    btn.textContent = `오늘 루틴으로 담기 (${items.length}개 종목)`;
+    btn.addEventListener("click", () => takeRoutine(items));
+    bubble.appendChild(btn);
+  }
+
   function addChatBubble(role, text) {
     document.getElementById("chat-empty").classList.add("hidden");
     const list = document.getElementById("chat-messages");
     const bubble = document.createElement("div");
     bubble.className = `chat-bubble chat-bubble-${role}`;
     if (role === "assistant") {
-      bubble.innerHTML = renderMarkdown(text);
+      fillAssistantBubble(bubble, text);
     } else {
       bubble.textContent = text;
     }
@@ -664,6 +754,7 @@
           history: loadHistory(),
           availableExercises: collectAvailableExercises(),
           messages: trimMessagesForApi(chat),
+          memo: loadChatMemo(),
           provider: apiSettings.provider,
           apiKey: apiSettings.apiKey,
         }),
@@ -676,7 +767,7 @@
         return;
       }
 
-      thinkingBubble.innerHTML = renderMarkdown(data.reply);
+      fillAssistantBubble(thinkingBubble, data.reply);
       const updatedChat = loadChat();
       updatedChat.push({ role: "assistant", content: data.reply, timestamp: Date.now() });
       saveChat(updatedChat);
@@ -689,9 +780,80 @@
     }
   }
 
+  // ---------- chat memo (대화 요약) ----------
+
+  function renderChatMemo() {
+    const memo = loadChatMemo();
+    document.getElementById("chat-memo").classList.toggle("hidden", !memo);
+    document.getElementById("chat-memo-text").value = memo;
+  }
+
+  function dateOf(timestamp) {
+    const d = new Date(timestamp || Date.now());
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+
+  // Dated lines so the summarizer can turn "어제 수영했어" into a real date.
+  // Routine blocks are dropped - the records they lead to are in the history.
+  function buildChatTranscript(chat) {
+    return chat
+      .map((m) => {
+        const speaker = m.role === "user" ? "사용자" : "트레이너";
+        const text = m.role === "assistant" ? extractRoutine(m.content).displayText : m.content;
+        return `[${dateOf(m.timestamp)}] ${speaker}: ${text}`;
+      })
+      .join("\n\n");
+  }
+
+  async function compactChat() {
+    const chat = loadChat();
+    if (chat.length === 0) {
+      showMascotToast("why", "요약할 대화가 아직 없어요.");
+      return;
+    }
+    if (!confirm("지금까지의 대화를 짧은 메모로 정리하고 대화 화면을 비울까요?\n메모는 트레이너가 계속 기억해요.")) return;
+
+    const btn = document.getElementById("compact-chat-btn");
+    btn.disabled = true;
+    btn.textContent = "요약 중…";
+    setChatSending(true);
+    try {
+      const apiSettings = loadApiSettings();
+      const res = await fetch("/api/compact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          transcript: buildChatTranscript(chat),
+          memo: loadChatMemo(),
+          provider: apiSettings.provider,
+          apiKey: apiSettings.apiKey,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.error || !data.memo) {
+        alert(data.error || "요약하지 못했어요. 대화는 그대로 남겨 뒀어요.");
+        return;
+      }
+      saveChatMemo(data.memo);
+      // Messages sent while the summary was being written are kept.
+      saveChat(loadChat().slice(chat.length));
+      renderChatHistory();
+      renderChatMemo();
+      showMascotToast("advice", "대화를 메모로 정리했어요!");
+    } catch (err) {
+      alert("서버에 연결할 수 없어요. 대화는 그대로 남겨 뒀어요.");
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "대화 요약";
+      setChatSending(false);
+    }
+  }
+
   // ---------- rendering ----------
 
   function renderHistory() {
+    // Routine ticks follow the history, so a deleted record un-ticks here.
+    renderRoutine();
     const history = loadHistory();
     const dayTitles = loadDayTitles();
     const sorted = sortByDateDesc(history);
@@ -803,6 +965,7 @@
     document.body.classList.add("main-active");
     setActiveTab(localStorage.getItem(ACTIVE_TAB_KEY) || "chat");
     renderChatHistory();
+    renderChatMemo();
     renderHistory();
   }
 
@@ -1037,6 +1200,7 @@
   function captureLogDraft() {
     return {
       editingEntryId,
+      routineIndex: activeRoutineIndex,
       date: document.getElementById("log-date").value,
       title: document.getElementById("log-title").value,
       part: document.getElementById("log-part").value,
@@ -1066,6 +1230,7 @@
   // rebuilds it from a finished history entry.
   function restoreLogDraft(draft) {
     editingEntryId = draft.editingEntryId || null;
+    activeRoutineIndex = Number.isInteger(draft.routineIndex) ? draft.routineIndex : null;
     document.getElementById("log-form-heading").textContent = editingEntryId ? "운동 기록 수정하기" : "운동 기록하기";
     document.getElementById("log-form-placeholder").classList.add("hidden");
     document.getElementById("log-form-section").classList.remove("hidden");
@@ -1215,6 +1380,7 @@
 
   function resetLogForm() {
     editingEntryId = null;
+    activeRoutineIndex = null;
     document.getElementById("log-form-heading").textContent = "운동 기록하기";
     document.getElementById("log-form").reset();
     const date = todayString();
@@ -1233,6 +1399,7 @@
 
   function startEditEntry(entry) {
     editingEntryId = entry.id;
+    activeRoutineIndex = null;
     setActiveTab("log");
     document.getElementById("log-form-heading").textContent = "운동 기록 수정하기";
     document.getElementById("log-form-placeholder").classList.add("hidden");
@@ -1288,6 +1455,137 @@
     renderSetRows();
     saveLogDraft();
 
+    document.getElementById("log-form-section").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  // ---------- today's routine ----------
+
+  // Index into the routine of the item the open log form was started from,
+  // so saving the form can tick that item off.
+  let activeRoutineIndex = null;
+
+  function routineItemDetail(item) {
+    if (item.minutes !== null && item.sets === null) return `${item.minutes}분`;
+    const parts = [];
+    if (item.weight !== null) parts.push(`${item.weight}kg`);
+    if (item.sets !== null && item.reps !== null) parts.push(`${item.sets}×${item.reps}`);
+    else if (item.sets !== null) parts.push(`${item.sets}세트`);
+    else if (item.reps !== null) parts.push(`${item.reps}회`);
+    return parts.join(" · ");
+  }
+
+  // An item counts as done only while its history entry still exists, so
+  // deleting that record from the history list un-ticks the item again.
+  function routineDoneEntry(item, history) {
+    return item.entryId ? history.find((en) => en.id === item.entryId) || null : null;
+  }
+
+  function renderRoutine() {
+    const card = document.getElementById("routine-card");
+    const routine = loadRoutine();
+    if (!routine || !Array.isArray(routine.items) || routine.items.length === 0) {
+      card.classList.add("hidden");
+      return;
+    }
+    card.classList.remove("hidden");
+
+    const history = loadHistory();
+    const doneCount = routine.items.filter((item) => routineDoneEntry(item, history)).length;
+    document.getElementById("routine-progress").textContent = `${doneCount}/${routine.items.length} 완료`;
+
+    const dateNote = document.getElementById("routine-date-note");
+    const isOld = routine.date !== todayString();
+    dateNote.classList.toggle("hidden", !isOld);
+    dateNote.textContent = isOld ? `${routine.date}에 담은 루틴이에요.` : "";
+
+    const list = document.getElementById("routine-list");
+    list.innerHTML = "";
+    routine.items.forEach((item, i) => {
+      const done = Boolean(routineDoneEntry(item, history));
+      const li = document.createElement("li");
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "routine-item" + (done ? " routine-item-done" : "");
+
+      const check = document.createElement("span");
+      check.className = "routine-item-check";
+      check.textContent = done ? "✓" : String(i + 1);
+      const name = document.createElement("span");
+      name.className = "routine-item-name";
+      name.textContent = item.exercise;
+      const detail = document.createElement("span");
+      detail.className = "routine-item-detail";
+      detail.textContent = routineItemDetail(item);
+
+      btn.append(check, name, detail);
+      btn.setAttribute("aria-label", `${item.exercise} ${done ? "기록 수정" : "기록하기"}`);
+      btn.addEventListener("click", () => startRoutineItem(i));
+      li.appendChild(btn);
+      list.appendChild(li);
+    });
+  }
+
+  function takeRoutine(items) {
+    const current = loadRoutine();
+    const history = loadHistory();
+    const hasPending =
+      current &&
+      Array.isArray(current.items) &&
+      current.items.length > 0 &&
+      current.date === todayString() &&
+      current.items.some((item) => !routineDoneEntry(item, history));
+    if (hasPending && !confirm("지금 담겨 있는 오늘 루틴을 이 추천으로 바꿀까요?\n이미 저장한 운동 기록은 그대로 남아요.")) {
+      return;
+    }
+    saveRoutine({ date: todayString(), items: items.map((item) => ({ ...item, entryId: null })) });
+    renderRoutine();
+    setActiveTab("log");
+    showMascotToast("cheer", "루틴을 담았어요! 종목을 눌러 바로 기록하세요.");
+  }
+
+  // Opens the log form already filled in from the routine item. A ticked
+  // item opens its saved record for editing instead of starting a duplicate.
+  function startRoutineItem(index) {
+    const routine = loadRoutine();
+    const item = routine && routine.items[index];
+    if (!item) return;
+
+    const doneEntry = routineDoneEntry(item, loadHistory());
+    if (doneEntry) {
+      startEditEntry(doneEntry);
+      return;
+    }
+
+    resetLogForm();
+    activeRoutineIndex = index;
+    document.getElementById("log-form-heading").textContent = `운동 기록하기 · ${item.exercise}`;
+    document.getElementById("log-form-placeholder").classList.add("hidden");
+    document.getElementById("log-form-section").classList.remove("hidden");
+
+    const known = item.part && getExercisesForPart(item.part).includes(item.exercise);
+    const part = item.part || CARDIO_PART;
+    document.getElementById("log-part").value = part;
+    renderPartChips();
+    populateExerciseSelectForPart(part);
+    document.getElementById("log-exercise").value = known ? item.exercise : CUSTOM_VALUE;
+    renderExerciseChips(part);
+    toggleCustomExerciseInput(!known);
+    if (!known) document.getElementById("log-exercise-custom").value = item.exercise;
+
+    const timeBased = item.minutes !== null && item.sets === null;
+    const { type } = updateFormFieldsForExercise(part, item.exercise, timeBased ? "duration" : "reps");
+
+    if (type === "distance_time" || (type === "reps_or_duration" && timeBased)) {
+      if (item.minutes !== null) document.getElementById("log-duration-minutes").value = item.minutes;
+    } else {
+      if (type === "strength" && item.weight !== null) document.getElementById("log-weight").value = item.weight;
+      if (item.reps !== null) document.getElementById("log-target-reps").value = item.reps;
+      logSets = Array.from({ length: item.sets || 5 }, () => ({ weight: null, targetReps: null, reps: null }));
+    }
+    renderSetRows();
+    saveLogDraft();
+
+    setActiveTab("log");
     document.getElementById("log-form-section").scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
@@ -1505,10 +1803,31 @@
     document.getElementById("export-data-btn").addEventListener("click", exportData);
 
     document.getElementById("clear-chat-btn").addEventListener("click", () => {
-      if (confirm("대화 내용을 초기화할까요? 운동 기록은 그대로 유지됩니다.")) {
+      if (confirm("대화 내용을 초기화할까요? 운동 기록과 대화 메모는 그대로 유지됩니다.")) {
         localStorage.removeItem(CHAT_KEY);
         renderChatHistory();
       }
+    });
+
+    document.getElementById("compact-chat-btn").addEventListener("click", compactChat);
+
+    document.getElementById("chat-memo-save-btn").addEventListener("click", () => {
+      saveChatMemo(document.getElementById("chat-memo-text").value);
+      renderChatMemo();
+      showMascotToast("advice", "메모를 저장했어요.");
+    });
+
+    document.getElementById("chat-memo-delete-btn").addEventListener("click", () => {
+      if (!confirm("대화 메모를 지울까요? 트레이너가 메모 내용을 더 이상 기억하지 못해요.")) return;
+      saveChatMemo("");
+      renderChatMemo();
+    });
+
+    document.getElementById("routine-clear-btn").addEventListener("click", () => {
+      if (!confirm("오늘의 루틴을 비울까요? 이미 저장한 운동 기록은 그대로 남아요.")) return;
+      saveRoutine(null);
+      activeRoutineIndex = null;
+      renderRoutine();
     });
 
     const profile = loadProfile();
@@ -1556,6 +1875,7 @@
 
     document.getElementById("cancel-log-btn").addEventListener("click", () => {
       editingEntryId = null;
+      activeRoutineIndex = null;
       document.getElementById("log-form-section").classList.add("hidden");
       document.getElementById("log-form-placeholder").classList.remove("hidden");
       clearLogDraft();
@@ -1679,6 +1999,7 @@
       }
 
       const history = loadHistory();
+      let routineFinished = false;
       if (editingEntryId) {
         const idx = history.findIndex((en) => en.id === editingEntryId);
         if (idx !== -1) {
@@ -1686,8 +2007,16 @@
         }
         editingEntryId = null;
       } else {
-        history.push({ id: Date.now(), date, exercise, ...entryFields });
+        const id = Date.now();
+        history.push({ id, date, exercise, ...entryFields });
+        const routine = loadRoutine();
+        if (activeRoutineIndex !== null && routine && routine.items[activeRoutineIndex]) {
+          routine.items[activeRoutineIndex].entryId = id;
+          saveRoutine(routine);
+          routineFinished = routine.items.every((item) => routineDoneEntry(item, history));
+        }
       }
+      activeRoutineIndex = null;
       saveHistory(history);
 
       if (title) {
@@ -1700,7 +2029,8 @@
       document.getElementById("log-form-placeholder").classList.remove("hidden");
       clearLogDraft();
       renderHistory();
-      showSaveFeedback(entryFields);
+      if (routineFinished) showMascotToast("cheer", "오늘 루틴 완주! 정말 수고했어요.");
+      else showSaveFeedback(entryFields);
     });
 
     document.getElementById("reset-btn").addEventListener("click", () => {
@@ -1712,6 +2042,8 @@
         localStorage.removeItem(CUSTOM_EXERCISES_KEY);
         localStorage.removeItem(LOG_DRAFT_KEY);
         localStorage.removeItem(TIMER_STATE_KEY);
+        localStorage.removeItem(ROUTINE_KEY);
+        localStorage.removeItem(CHAT_MEMO_KEY);
         document.getElementById("profile-modal").classList.add("hidden");
         showOnboardingScreen();
       }

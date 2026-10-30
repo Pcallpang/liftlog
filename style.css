@@ -636,6 +636,57 @@ body:not(.main-active) .bottom-nav {
   margin: 0;
 }
 
+.chat-section-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 6px;
+}
+
+.chat-memo {
+  flex-shrink: 0;
+  margin-bottom: 10px;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-yellow-dim);
+}
+
+.chat-memo summary {
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.chat-memo-hint {
+  margin-left: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.chat-memo-text {
+  display: block;
+  width: 100%;
+  max-height: 30vh;
+  margin: 8px 0;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.chat-memo-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
 .chat-messages {
   display: flex;
   flex-direction: column;
@@ -786,6 +837,112 @@ body:not(.main-active) .bottom-nav {
 
 .chat-form input {
   flex: 1;
+}
+
+.routine-take-btn {
+  display: block;
+  margin-top: 12px;
+}
+
+/* ---------- today's routine ---------- */
+
+.routine-card {
+  margin-bottom: 20px;
+}
+
+.routine-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.routine-card-header h2 {
+  margin: 0;
+}
+
+.routine-progress {
+  flex: 1;
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--color-text-muted);
+}
+
+.routine-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.routine-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 10px 14px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: 0.95rem;
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: transform 0.2s var(--bounce), background-color 0.15s ease;
+}
+
+.routine-item:active {
+  transform: scale(0.98);
+}
+
+.routine-item-check {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid var(--color-border-strong);
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--color-text-muted);
+}
+
+.routine-item-name {
+  flex: 1;
+  min-width: 0;
+  font-weight: 700;
+}
+
+.routine-item-detail {
+  flex-shrink: 0;
+  font-family: var(--font-display);
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.routine-item-done {
+  background: var(--color-accent-dim);
+}
+
+.routine-item-done .routine-item-check {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-accent-text);
+}
+
+.routine-item-done .routine-item-name {
+  color: var(--color-text-muted);
+  text-decoration: line-through;
 }
 
 .log-panel-grid {
@@ -1277,6 +1434,69 @@ body:not(.main-active) .bottom-nav {
   /* the timer stands alone in its own tab - no gap to a following card */
   .timer-card {
     margin-bottom: 0;
+  }
+
+  /* The chat tab fills the screen between the top padding and the bottom
+     nav: the message list takes whatever is left and the input stays pinned
+     just above the nav (and above the keyboard on Android, via
+     interactive-widget=resizes-content in index.html). The app title is
+     dropped here - the chat header already says where you are. */
+  body[data-active-tab="chat"] .main-header {
+    display: none;
+  }
+
+  body[data-active-tab="chat"] .chat-section {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 100px - env(safe-area-inset-bottom));
+    height: calc(100dvh - 100px - env(safe-area-inset-bottom));
+    margin-bottom: 0;
+    padding: 12px;
+  }
+
+  body[data-active-tab="chat"] .app-container {
+    padding-top: 12px;
+  }
+
+  .chat-section-header {
+    margin-bottom: 8px;
+  }
+
+  .chat-section-header h2 {
+    font-size: 1rem;
+  }
+
+  /* two header buttons leave no room for the full title on a phone */
+  .chat-title-brand {
+    display: none;
+  }
+
+  .chat-section .chat-messages {
+    flex: 1;
+    min-height: 0;
+    max-height: none;
+    margin-bottom: 10px;
+  }
+
+  .chat-section .chat-bubble {
+    max-width: 96%;
+  }
+
+  .chat-section .chat-row {
+    max-width: 100%;
+  }
+
+  .chat-section .chat-avatar {
+    width: 30px;
+    height: 30px;
+  }
+
+  .chat-section #chat-empty {
+    flex: 1;
+  }
+
+  .chat-form {
+    flex-shrink: 0;
   }
 }
 

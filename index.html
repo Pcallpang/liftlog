@@ -2,7 +2,9 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<!-- resizes-content: Android shrinks the layout (and 100dvh) when the
+     keyboard opens, so the full-height chat keeps its input above it. -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content" />
 <title>더드미요의 운동 추천</title>
 <meta name="description" content="키·체중·3대 중량만 입력하면 AI 트레이너가 지난 기록을 보고 오늘 할 운동을 무게까지 짜주는 운동 기록 앱. 기록·타이머는 무료, 설치 없이 홈 화면에 추가해서 씁니다." />
 <meta property="og:type" content="website" />
@@ -99,9 +101,20 @@
 
     <section class="chat-section card" data-tab="chat">
       <div class="chat-section-header">
-        <h2>더드미요 트레이너와 대화하기</h2>
-        <button type="button" id="clear-chat-btn" class="btn btn-ghost btn-small">대화 초기화</button>
+        <h2><span class="chat-title-brand">더드미요 </span>트레이너와 대화하기</h2>
+        <div class="chat-section-actions">
+          <button type="button" id="compact-chat-btn" class="btn btn-ghost btn-small">대화 요약</button>
+          <button type="button" id="clear-chat-btn" class="btn btn-ghost btn-small">대화 초기화</button>
+        </div>
       </div>
+      <details id="chat-memo" class="chat-memo hidden">
+        <summary>지난 대화 메모 <span class="chat-memo-hint">트레이너가 기억하는 내용</span></summary>
+        <textarea id="chat-memo-text" class="chat-memo-text" rows="6" maxlength="2000"></textarea>
+        <div class="chat-memo-actions">
+          <button type="button" id="chat-memo-delete-btn" class="btn btn-ghost btn-small">메모 지우기</button>
+          <button type="button" id="chat-memo-save-btn" class="btn btn-primary btn-small">메모 저장</button>
+        </div>
+      </details>
       <div id="chat-messages" class="chat-messages"></div>
       <div id="chat-empty" class="empty-message">
         <img class="mascot-illustration mascot-illustration-small" src="assets/mascots/miyo-main.png" alt="" />
@@ -143,6 +156,16 @@
             <button type="button" id="timer-lap-btn" class="btn btn-ghost btn-small" disabled>쉬는 시간 시작</button>
           </div>
           <ul id="timer-laps" class="timer-laps"></ul>
+        </div>
+
+        <div id="routine-card" class="card routine-card hidden" data-tab="log">
+          <div class="routine-card-header">
+            <h2>오늘의 루틴</h2>
+            <span id="routine-progress" class="routine-progress"></span>
+            <button type="button" id="routine-clear-btn" class="btn btn-ghost btn-small">비우기</button>
+          </div>
+          <p id="routine-date-note" class="form-hint hidden"></p>
+          <ul id="routine-list" class="routine-list"></ul>
         </div>
 
         <div id="log-form-placeholder" class="card log-form-placeholder" data-tab="log">

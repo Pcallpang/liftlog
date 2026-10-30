@@ -41,6 +41,14 @@ SYSTEM_PROMPT_TEMPLATE = """당신은 친절하고 전문적인 퍼스널 트레
 7. 사용자가 컨디션(부상, 시간 부족 등)을 이야기하면 그에 맞게 유연하게 조정.
 8. [최근 운동 기록]은 앱에 정식으로 저장된 기록이고, 그 외에 이 대화(위쪽 대화 내용)에서 사용자가 언급한 운동(예: "오늘 수영했어", "등산 다녀왔어" 같은 기록되지 않은 활동)도 반드시 함께 고려하세요. 대화에서 언급된 활동이 있다면 그 부위/피로도를 감안해서 오늘 추천을 조정하고, 필요하면 "지난번에 말씀하신 수영 때문에 오늘은 하체보다는 ~"처럼 근거를 짚어주세요.
 9. [사용 가능한 운동 종목]은 이 사용자의 앱에 등록된, 실제로 할 수 있는 종목 목록입니다. 추천은 이 목록 위주로 하고, 같은 부위를 또 추천할 때도 최근 기록에서 자주 쓴 종목만 반복하지 말고 같은 부위 안의 다른 종목(다른 머신·각도·그립)으로 로테이션해서 매번 루틴이 다양해지도록 하세요. 목록에 없는 아주 일반적인 보조 운동(맨몸 스트레칭 등)은 필요하면 곁들여도 되지만, 메인 종목은 목록에서 고르세요.
+10. 오늘(또는 다음에) 할 구체적인 루틴을 새로 제안하거나 수정해서 다시 제안할 때만, 답변 맨 끝에 앱이 읽는 루틴 블록을 붙이세요. 사용자가 이 블록으로 종목을 하나씩 바로 기록합니다. 형식은 아래와 같고, 블록 앞뒤에 블록에 대한 설명은 쓰지 마세요(화면에서는 숨겨집니다).
+```routine
+[{{"part": "가슴", "exercise": "벤치프레스", "weight": 70, "sets": 4, "reps": 10}}, {{"part": "유산소·기타", "exercise": "인클라인 런닝머신", "minutes": 25}}]
+```
+   - part는 [사용 가능한 운동 종목]의 부위 이름, exercise는 그 목록에 적힌 종목 이름을 글자 그대로 쓰세요. 목록에 없는 종목이면 이름만 자연스럽게 쓰면 됩니다.
+   - weight는 kg 숫자 하나(범위를 추천했다면 시작 무게), 맨몸 운동이면 weight를 빼세요. reps는 목표 횟수 숫자 하나(범위면 아래쪽 값), sets는 세트 수입니다.
+   - 시간으로 하는 운동은 sets·reps 대신 minutes를 쓰세요. 웜업 세트는 블록에 넣지 마세요. 슈퍼세트는 종목을 각각 따로 넣으세요.
+   - 단순 질문·잡담·설명에만 답할 때는 블록을 붙이지 마세요.
 
 [참고: 7월 과거 훈련 스타일 예시 - 실제 완료 여부는 불확실하지만 톤과 구성 참고용]
 {july_reference}
@@ -51,10 +59,34 @@ SYSTEM_PROMPT_TEMPLATE = """당신은 친절하고 전문적인 퍼스널 트레
 [사용 가능한 운동 종목]
 {available_exercises}
 
+[지난 대화 요약 메모 — 예전 대화를 정리해 둔 것. 8번 원칙의 대화 내용처럼 함께 고려하세요]
+{chat_memo}
+
 [최근 운동 기록]
 {history_summary}
 
 친근하고 격려하는 말투로, 한국어로 답변하세요. 답변은 너무 길지 않게, 오늘 할 운동 위주로 명확하게 정리해서 알려주세요."""
+
+
+COMPACT_SYSTEM_PROMPT = """당신은 퍼스널 트레이너 AI의 기억을 정리하는 비서입니다. 사용자가 보낸 [기존 메모]와 [대화 기록]을 읽고, 다음 대화에서 트레이너가 기억해야 할 내용만 하나의 메모로 정리하세요.
+
+[남길 것]
+- 부상·통증·컨디션 (언제부터인지 날짜 포함)
+- 앱에 기록하지 않고 대화로만 말한 운동·활동 (예: 수영, 등산 — 날짜 포함)
+- 좋아하거나 싫어하는 종목·장비, 운동 가능 시간 같은 제약
+- 목표와 트레이너와 합의한 계획
+
+[뺄 것]
+- 앱에 저장되는 운동 기록과 겹치는 세트별 무게·횟수
+- 인사·잡담, 지나간 하루치 루틴 전체 나열
+- 이미 끝났거나 뒤집힌 내용 (기존 메모에 있어도 지우기)
+
+[형식]
+- 날짜는 YYYY-MM-DD로 쓰기. "어제"·"오늘"은 대화 기록의 날짜를 보고 실제 날짜로 바꾸기
+- "- "로 시작하는 짧은 항목 12개 이하, 전체 600자 이내
+- 메모 내용만 쓰고 다른 말은 쓰지 않기. 남길 내용이 없으면 "- 특별히 기억할 내용 없음"이라고만 쓰기"""
+
+MEMO_MAX_CHARS = 2000
 
 
 def format_history(history):
@@ -276,6 +308,7 @@ def chat():
         history = data.get("history") or []
         available_exercises = data.get("availableExercises") or {}
         messages = data.get("messages") or []
+        chat_memo = str(data.get("memo") or "").strip()[:MEMO_MAX_CHARS]
         provider = data.get("provider") or "claude"
         client_api_key = (data.get("apiKey") or "").strip()
 
@@ -294,6 +327,7 @@ def chat():
             july_reference=JULY_REFERENCE,
             workout_reference=format_workout_reference(),
             available_exercises=format_available_exercises(available_exercises),
+            chat_memo=chat_memo or "없음",
             history_summary=format_history(history),
         )
 
@@ -316,6 +350,46 @@ def chat():
         # through to Flask's HTML 500 page, which the client can't parse as
         # JSON and shows only a generic fallback message. Log the real
         # traceback server-side and still hand back JSON the client can show.
+        traceback.print_exc()
+        return jsonify({"error": "서버에서 오류가 발생했어요. 잠시 후 다시 시도해주세요."}), 500
+
+
+@app.route("/api/compact", methods=["POST"])
+def compact():
+    """Folds the chat so far (plus any earlier memo) into one short memo.
+
+    The client clears its chat once this succeeds and sends the memo with
+    every later /api/chat call, so the trainer keeps what mattered without
+    replaying the whole conversation."""
+    try:
+        data = request.get_json(force=True, silent=True) or {}
+        transcript = str(data.get("transcript") or "").strip()
+        previous_memo = str(data.get("memo") or "").strip()[:MEMO_MAX_CHARS]
+        provider = data.get("provider") or "claude"
+        client_api_key = (data.get("apiKey") or "").strip()
+
+        if not transcript:
+            return jsonify({"error": "요약할 대화가 없어요."}), 400
+        if not client_api_key:
+            return jsonify(
+                {"error": "API 키가 없어요. 설정 탭의 'API 설정'에서 키를 입력해주세요."}
+            ), 400
+
+        request_text = (
+            f"[기존 메모]\n{previous_memo or '없음'}\n\n[대화 기록]\n{transcript}"
+        )
+        messages = [{"role": "user", "content": request_text}]
+
+        if provider == "gemini":
+            memo, error, status = call_gemini(client_api_key, COMPACT_SYSTEM_PROMPT, messages)
+        else:
+            memo, error, status = call_claude(client_api_key, COMPACT_SYSTEM_PROMPT, messages)
+
+        if error:
+            return jsonify({"error": error}), status
+
+        return jsonify({"memo": memo.strip()[:MEMO_MAX_CHARS]})
+    except Exception:
         traceback.print_exc()
         return jsonify({"error": "서버에서 오류가 발생했어요. 잠시 후 다시 시도해주세요."}), 500
 
